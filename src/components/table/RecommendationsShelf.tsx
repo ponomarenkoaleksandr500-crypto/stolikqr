@@ -33,7 +33,7 @@ export function RecommendationsShelf({
             className="flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl border border-ink-100 bg-surface text-left transition-colors hover:border-ink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
             <div
-              className={`flex h-16 items-center justify-center bg-gradient-to-br text-2xl ${dish.gradient}`}
+              className={`flex h-16 items-center justify-center bg-gradient-to-br text-2xl leading-none ${dish.gradient}`}
             >
               <span role="img" aria-hidden="true">
                 {dish.emoji}

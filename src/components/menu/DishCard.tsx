@@ -17,7 +17,7 @@ export function DishCard({ dish, onSelect }: { dish: Dish; onSelect: (dish: Dish
         className="group block w-full cursor-pointer rounded-t-3xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
       >
         <div
-          className={`relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-t-3xl bg-gradient-to-br text-6xl ${dish.gradient}`}
+          className={`relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-t-3xl bg-gradient-to-br text-6xl leading-none ${dish.gradient}`}
         >
           <span role="img" aria-hidden="true" className="drop-shadow-sm">
             {dish.emoji}

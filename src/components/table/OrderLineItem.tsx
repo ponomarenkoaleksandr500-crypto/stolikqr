@@ -36,7 +36,7 @@ export function OrderLineItem({ item }: { item: OrderItem }) {
   return (
     <li className="flex gap-3 py-4">
       <div
-        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl ${item.gradient}`}
+        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl leading-none ${item.gradient}`}
       >
         <span role="img" aria-hidden="true">
           {item.emoji}

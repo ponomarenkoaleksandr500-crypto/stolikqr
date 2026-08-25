@@ -14,7 +14,6 @@ export function useOrder() {
   return {
     order,
     submitCartItems: orderStore.submitCartItems,
-    scheduleMockPayment: orderStore.scheduleMockPayment,
     clearOrder: orderStore.clearOrder,
   };
 }

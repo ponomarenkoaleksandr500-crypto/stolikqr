@@ -1,0 +1,343 @@
+import type { Category, Dish, Restaurant } from "@/types/menu";
+import type { LocalizedText } from "@/i18n/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export class ApiNotFoundError extends Error {}
+export class ApiUnauthorizedError extends Error {}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, init);
+  } catch (cause) {
+    throw new Error(`Failed to reach API at ${API_URL}${path}`, { cause });
+  }
+  if (res.status === 404) {
+    throw new ApiNotFoundError(`Not found: ${path}`);
+  }
+  if (res.status === 401) {
+    throw new ApiUnauthorizedError(`Unauthorized: ${path}`);
+  }
+  if (!res.ok) {
+    throw new Error(`API request failed (${res.status}): ${path}`);
+  }
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  return res.json() as Promise<T>;
+}
+
+export interface MenuResponse {
+  restaurant: Restaurant;
+  categories: Category[];
+  dishes: Dish[];
+}
+
+/** Plain menu browsing without a table — GET /r/[slug]/[categorySlug] today. */
+export function fetchMenuByRestaurantSlug(slug: string): Promise<MenuResponse> {
+  return apiFetch<MenuResponse>(`/restaurants/${encodeURIComponent(slug)}/menu`, {
+    cache: "no-store",
+  });
+}
+
+/** Table-scoped entry — qrToken alone determines Table -> Location -> Menu. */
+export function fetchMenuByQrToken(qrToken: string): Promise<MenuResponse> {
+  return apiFetch<MenuResponse>(`/tables/${encodeURIComponent(qrToken)}/menu`, {
+    cache: "no-store",
+  });
+}
+
+/**
+ * Translates today's URL shape (/r/[slug]/t/[tableCode]) into the table's
+ * qrToken — the one place slug+code are used; everything after this is
+ * keyed by qrToken alone (see backend TablesService for the same note).
+ */
+export function resolveTableByCode(
+  slug: string,
+  code: string,
+): Promise<{ tableId: string; qrToken: string }> {
+  return apiFetch<{ tableId: string; qrToken: string }>(
+    `/tables/resolve?slug=${encodeURIComponent(slug)}&code=${encodeURIComponent(code)}`,
+    { cache: "no-store" },
+  );
+}
+
+export interface GuestSessionResponse {
+  id: string;
+  tableId: string;
+  startedAt: number;
+}
+
+/** Idempotent: the same (qrToken, deviceToken) pair resumes the same open session. */
+export function createOrResumeGuestSession(
+  qrToken: string,
+  deviceToken: string,
+): Promise<GuestSessionResponse> {
+  return apiFetch<GuestSessionResponse>("/guest-sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ qrToken, deviceToken }),
+  });
+}
+
+export interface CreateOrderItemInput {
+  dishId: string;
+  quantity: number;
+  modifierChoiceIds?: string[];
+  excludedIngredientIds?: string[];
+}
+
+export interface OrderItemResponse {
+  id: string;
+  dishId: string;
+  dishSlug: string;
+  name: LocalizedText;
+  emoji: string;
+  gradient: string;
+  basePrice: number;
+  modifiers: {
+    groupId: string;
+    groupName: LocalizedText;
+    choiceId: string;
+    choiceName: LocalizedText;
+    priceDelta: number;
+  }[];
+  excludedIngredients: { id: string; name: LocalizedText }[];
+  selectionsSummary: LocalizedText;
+  excludedSummary: LocalizedText;
+  quantity: number;
+  lineTotal: number;
+  status: string;
+  createdAt: number;
+}
+
+export interface OrderResponse {
+  id: string;
+  tableId: string;
+  guestSessionId: string | null;
+  status: string;
+  createdAt: number;
+  paidAt: number | null;
+  items: OrderItemResponse[];
+}
+
+/**
+ * Creates one Order (one "submission round" / batch) on the backend. Price,
+ * dish/modifier/ingredient identity and names are all recomputed server-side
+ * from the real Dish/ModifierChoice/DishIngredient rows - nothing here is
+ * trusted from the client beyond dishId/quantity/chosen ids.
+ */
+export function createOrder(
+  guestSessionId: string,
+  items: CreateOrderItemInput[],
+): Promise<OrderResponse> {
+  return apiFetch<OrderResponse>("/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ guestSessionId, items }),
+  });
+}
+
+/** All orders for the guest session's table (the table's whole visit, not just this device). */
+export function fetchOrdersForGuestSession(guestSessionId: string): Promise<OrderResponse[]> {
+  return apiFetch<OrderResponse[]>(`/guest-sessions/${encodeURIComponent(guestSessionId)}/orders`, {
+    cache: "no-store",
+  });
+}
+
+export interface WaiterCallResponse {
+  id: string;
+  tableId: string;
+  guestSessionId: string | null;
+  reasonKey: string;
+  status: string;
+  calledAt: number;
+  acceptedAt: number | null;
+  inProgressAt: number | null;
+  completedAt: number | null;
+}
+
+/**
+ * Idempotent: a table can only have one active call at a time - if one
+ * already exists this returns it as-is (see backend WaiterCallsService).
+ */
+export function createWaiterCall(
+  guestSessionId: string,
+  reasonKey: string,
+): Promise<WaiterCallResponse> {
+  return apiFetch<WaiterCallResponse>("/waiter-calls", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ guestSessionId, reasonKey }),
+  });
+}
+
+/** The table's active call (PENDING/ACCEPTED/IN_PROGRESS), or null if none. */
+export function fetchActiveWaiterCall(guestSessionId: string): Promise<WaiterCallResponse | null> {
+  return apiFetch<WaiterCallResponse | null>(
+    `/guest-sessions/${encodeURIComponent(guestSessionId)}/waiter-call/active`,
+    { cache: "no-store" },
+  );
+}
+
+// --- Waiter App (staff-only) ------------------------------------------------
+
+export interface StaffDto {
+  id: string;
+  name: string;
+  email: string;
+  restaurantId: string;
+}
+
+export interface StaffLoginResponse {
+  accessToken: string;
+  staff: StaffDto;
+}
+
+export function staffLogin(email: string, password: string): Promise<StaffLoginResponse> {
+  return apiFetch<StaffLoginResponse>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+function authHeaders(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export interface StaffTableDto {
+  id: string;
+  code: string;
+  label: string | null;
+  hasActiveOrder: boolean;
+  hasActiveCall: boolean;
+}
+
+export interface StaffOverviewResponse {
+  tables: StaffTableDto[];
+  activeOrders: OrderResponse[];
+  activeCalls: WaiterCallResponse[];
+}
+
+/** The Waiter App's initial dashboard snapshot; WS pushes keep it live afterward. */
+export function fetchStaffOverview(slug: string, token: string): Promise<StaffOverviewResponse> {
+  return apiFetch<StaffOverviewResponse>(
+    `/restaurants/${encodeURIComponent(slug)}/staff/overview`,
+    { headers: authHeaders(token), cache: "no-store" },
+  );
+}
+
+export function updateOrderStatus(
+  orderId: string,
+  status: string,
+  token: string,
+): Promise<OrderResponse> {
+  return apiFetch<OrderResponse>(`/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function updateWaiterCallStatus(
+  callId: string,
+  status: string,
+  token: string,
+): Promise<WaiterCallResponse> {
+  return apiFetch<WaiterCallResponse>(`/waiter-calls/${encodeURIComponent(callId)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ status }),
+  });
+}
+
+// --- Payments ---------------------------------------------------------------
+
+export interface PaymentResponse {
+  id: string;
+  tableId: string;
+  provider: string;
+  amount: number;
+  status: string;
+  createdAt: number;
+  confirmedAt: number | null;
+}
+
+/** Requests payment for the table's whole current open tab (every unpaid order, summed). */
+export function createPayment(guestSessionId: string): Promise<PaymentResponse> {
+  return apiFetch<PaymentResponse>(
+    `/guest-sessions/${encodeURIComponent(guestSessionId)}/payments`,
+    { method: "POST" },
+  );
+}
+
+export function fetchLatestPayment(guestSessionId: string): Promise<PaymentResponse | null> {
+  return apiFetch<PaymentResponse | null>(
+    `/guest-sessions/${encodeURIComponent(guestSessionId)}/payments/latest`,
+    { cache: "no-store" },
+  );
+}
+
+export function refundPayment(paymentId: string, token: string): Promise<PaymentResponse> {
+  return apiFetch<PaymentResponse>(`/payments/${encodeURIComponent(paymentId)}/refund`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+}
+
+// --- Analytics ---------------------------------------------------------------
+
+export type ClientTrackableEventName =
+  | "QR_SCANNED"
+  | "MENU_OPENED"
+  | "CATEGORY_VIEWED"
+  | "DISH_VIEWED"
+  | "DISH_ADDED_TO_CART"
+  | "DISH_REMOVED_FROM_CART";
+
+export interface TrackEventInput {
+  name: ClientTrackableEventName;
+  restaurantId: string;
+  tableId?: string;
+  guestSessionId?: string;
+  dishId?: string;
+  payload?: Record<string, unknown>;
+}
+
+/**
+ * Fire-and-forget: an analytics ping must never block or break the guest
+ * experience, so failures (network, 404 for a stale restaurantId, etc.) are
+ * swallowed silently rather than surfaced anywhere.
+ */
+export function trackEvent(input: TrackEventInput): void {
+  void apiFetch<void>("/analytics/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  }).catch(() => {
+    // Best-effort only - see docstring above.
+  });
+}
+
+export interface StaffAnalyticsSummaryResponse {
+  qrSessions: number;
+  menuViews: number;
+  categoryViews: number;
+  dishViews: number;
+  addToCart: number;
+  orders: number;
+  waiterCalls: number;
+  conversionRate: number;
+}
+
+export function fetchStaffAnalytics(
+  slug: string,
+  token: string,
+): Promise<StaffAnalyticsSummaryResponse> {
+  return apiFetch<StaffAnalyticsSummaryResponse>(
+    `/restaurants/${encodeURIComponent(slug)}/staff/analytics`,
+    { headers: authHeaders(token), cache: "no-store" },
+  );
+}

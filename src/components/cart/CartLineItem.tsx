@@ -5,12 +5,19 @@ import { formatPrice } from "@/lib/format";
 import { MinusIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import type { CartItem } from "@/cart/types";
 import { useCart } from "@/cart/CartProvider";
+import { useAnalytics } from "@/lib/analytics";
 
 export function CartLineItem({ item }: { item: CartItem }) {
   const { text, t } = useLocale();
   const { incrementItem, decrementItem, removeItem } = useCart();
+  const { track } = useAnalytics();
   const summary = text(item.selectionsSummary);
   const excludedSummary = text(item.excludedIngredientsSummary);
+
+  const handleRemove = () => {
+    track("DISH_REMOVED_FROM_CART", { dishId: item.dishId });
+    removeItem(item.id);
+  };
 
   return (
     <li className="flex gap-3 py-4">
@@ -27,7 +34,7 @@ export function CartLineItem({ item }: { item: CartItem }) {
           <span className="font-display font-semibold text-ink-900">{text(item.dishName)}</span>
           <button
             type="button"
-            onClick={() => removeItem(item.id)}
+            onClick={handleRemove}
             aria-label={t("cart.remove")}
             className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >

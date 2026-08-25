@@ -12,6 +12,7 @@ import {
   type Selections,
 } from "@/lib/dishOptions";
 import { useCart } from "@/cart/CartProvider";
+import { useAnalytics } from "@/lib/analytics";
 import { CheckIcon, CloseIcon, LeafIcon } from "@/components/icons";
 import { IngredientChip } from "./IngredientChip";
 import type { Dish, OptionGroup } from "@/types/menu";
@@ -31,6 +32,7 @@ export function DishModal({
 }) {
   const { locale, text, t } = useLocale();
   const { addItem } = useCart();
+  const { track } = useAnalytics();
   const [selections, setSelections] = useState<Selections>(() => initialSelections(dish));
   const [missingGroupIds, setMissingGroupIds] = useState<Set<string>>(() => new Set());
   const [justAdded, setJustAdded] = useState(false);
@@ -39,9 +41,11 @@ export function DishModal({
   const { dialogRef, closing, requestClose } = useDialog(onClose);
 
   useEffect(() => {
+    track("DISH_VIEWED", { dishId: dish.id });
     return () => {
       if (addedTimeoutRef.current) window.clearTimeout(addedTimeoutRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per dish mount only (DishModal is remounted per dish via `key={selectedDish.id}`)
   }, []);
 
   const totalPrice = useMemo(() => computeDishPrice(dish, selections), [dish, selections]);
@@ -69,6 +73,7 @@ export function DishModal({
     }
 
     addItem(dish, selections, excludedIngredientIds);
+    track("DISH_ADDED_TO_CART", { dishId: dish.id, payload: { quantity: 1 } });
     setJustAdded(true);
     if (addedTimeoutRef.current) window.clearTimeout(addedTimeoutRef.current);
     addedTimeoutRef.current = window.setTimeout(() => {

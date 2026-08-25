@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
-import { restaurant } from "@/data/restaurant";
-import { categories } from "@/data/categories";
-import { dishes } from "@/data/dishes";
+import { ApiNotFoundError, fetchMenuByRestaurantSlug } from "@/lib/api";
 import { RestaurantShell } from "@/components/menu/RestaurantShell";
 
 export default async function RestaurantLayout({
@@ -13,12 +11,16 @@ export default async function RestaurantLayout({
 }) {
   const { slug } = await params;
 
-  if (slug !== restaurant.slug) {
-    notFound();
+  let menu;
+  try {
+    menu = await fetchMenuByRestaurantSlug(slug);
+  } catch (error) {
+    if (error instanceof ApiNotFoundError) notFound();
+    throw error;
   }
 
   return (
-    <RestaurantShell restaurant={restaurant} categories={categories} dishes={dishes}>
+    <RestaurantShell restaurant={menu.restaurant} categories={menu.categories} dishes={menu.dishes}>
       {children}
     </RestaurantShell>
   );

@@ -2,6 +2,10 @@ import type { GuestSession } from "@/types/table";
 import * as cartStore from "@/cart/cartStore";
 import * as orderStore from "./orderStore";
 import * as waiterStore from "./waiterStore";
+import * as paymentStore from "./paymentStore";
+import { createOrResumeGuestSession } from "@/lib/api";
+import { getOrCreateDeviceToken } from "@/lib/deviceToken";
+import { connectGuestSocket } from "@/lib/guestSocket";
 
 const STORAGE_KEY = "stolikqr.session";
 
@@ -108,33 +112,57 @@ function clearOtherTableState(): void {
   cartStore.clearCart();
   orderStore.clearOrder();
   waiterStore.clearCall();
+  paymentStore.clearPayment();
 }
 
 /**
  * Starts (or resumes) a table session. A phone is physically at one table at
- * a time, so scanning a different table's QR simply overwrites the session.
- * Re-scanning the same table is a no-op so its startedAt isn't reset.
+ * a time, so scanning a different table's QR overwrites the session.
+ *
+ * Unlike the old purely-local version, this always confirms with the backend
+ * (POST /guest-sessions, keyed by qrToken + this device's stable deviceToken)
+ * so a page reload resumes the *same* server-side session instead of losing
+ * it - the server is authoritative, this store just caches its answer the
+ * same way it always cached a locally-generated id. Failures are swallowed:
+ * the guest-facing UI (menu, cart) doesn't depend on a session existing, and
+ * WaiterFab already tolerates `session` being null.
  */
-export function startSession(restaurantSlug: string, tableCode: string): void {
+export async function startSession(
+  restaurantSlug: string,
+  tableCode: string,
+  qrToken: string,
+): Promise<void> {
   ensureHydrated();
-  if (
-    currentSession &&
-    currentSession.restaurantSlug === restaurantSlug &&
-    currentSession.tableCode === tableCode
-  ) {
-    return;
-  }
-  const previous = currentSession;
-  currentSession = {
-    id: crypto.randomUUID(),
-    restaurantSlug,
-    tableCode,
-    startedAt: Date.now(),
-  };
-  persist();
-  notify();
-  if (isDifferentTable(previous, currentSession)) {
-    clearOtherTableState();
+  try {
+    const deviceToken = getOrCreateDeviceToken();
+    const remote = await createOrResumeGuestSession(qrToken, deviceToken);
+    const previous = currentSession;
+    currentSession = {
+      id: remote.id,
+      restaurantSlug,
+      tableCode,
+      startedAt: remote.startedAt,
+    };
+    persist();
+    notify();
+    if (isDifferentTable(previous, currentSession)) {
+      clearOtherTableState();
+    }
+    // Restores any existing order/waiter call for this table visit from the
+    // backend - the real replacement for the old localStorage-only restoration.
+    void orderStore.loadOrderForSession(remote.id);
+    void waiterStore.loadActiveCall(remote.id);
+    void paymentStore.loadLatestPayment(remote.id);
+    // Live updates from here on - the Waiter App accepting a call, moving an
+    // order forward, or the mock provider settling a payment pushes straight
+    // to this table, no polling/reload needed.
+    connectGuestSocket(remote.tableId, {
+      onOrderUpdate: () => void orderStore.loadOrderForSession(remote.id),
+      onWaiterCallUpdate: () => void waiterStore.loadActiveCall(remote.id),
+      onPaymentUpdate: () => void paymentStore.loadLatestPayment(remote.id),
+    });
+  } catch (error) {
+    console.error("Failed to start/resume guest session", error);
   }
 }
 

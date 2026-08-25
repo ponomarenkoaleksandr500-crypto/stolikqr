@@ -17,7 +17,7 @@ interface TableSessionContextValue {
   session: GuestSession | null;
   table: Table | null;
   isTableMode: boolean;
-  startSession: (restaurantSlug: string, tableCode: string) => void;
+  startSession: (restaurantSlug: string, tableCode: string, qrToken: string) => void;
   endSession: () => void;
 }
 

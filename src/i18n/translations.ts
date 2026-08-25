@@ -66,11 +66,16 @@ export const translations = {
     "waiter.reason.clean": "Прибрати зі столу",
     "waiter.reason.other": "Покликати офіціанта",
     "waiter.confirmTitle": "Офіціанта викликано",
+    "waiter.acceptedTitle": "Офіціант уже прямує до вас",
     "waiter.cooldownLabel": "Офіціант вже викликаний",
     "waiter.callButton": "Офіціант",
 
     "recommendations.popularTitle": "Популярні страви",
     "recommendations.pairsTitle": "До вашого замовлення часто беруть",
+
+    "common.loading": "Завантаження меню…",
+    "common.errorTitle": "Не вдалося завантажити меню",
+    "common.errorRetry": "Спробувати ще раз",
   },
   en: {
     "language.label": "EN",
@@ -137,11 +142,16 @@ export const translations = {
     "waiter.reason.clean": "Clear the table",
     "waiter.reason.other": "Call the waiter",
     "waiter.confirmTitle": "Waiter notified",
+    "waiter.acceptedTitle": "The waiter is on the way",
     "waiter.cooldownLabel": "Waiter already notified",
     "waiter.callButton": "Waiter",
 
     "recommendations.popularTitle": "Popular dishes",
     "recommendations.pairsTitle": "Often ordered with your order",
+
+    "common.loading": "Loading menu…",
+    "common.errorTitle": "Couldn't load the menu",
+    "common.errorRetry": "Try again",
   },
 } satisfies Record<Locale, Record<string, string>>;
 

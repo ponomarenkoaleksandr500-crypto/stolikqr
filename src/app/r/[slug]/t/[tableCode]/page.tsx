@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
-import { restaurant } from "@/data/restaurant";
-import { categories } from "@/data/categories";
-import { dishes } from "@/data/dishes";
+import { ApiNotFoundError, fetchMenuByQrToken, resolveTableByCode } from "@/lib/api";
 import { TableSessionBootstrap } from "@/components/table/TableSessionBootstrap";
 import { DigitalTableHome } from "@/components/table/DigitalTableHome";
 
@@ -12,18 +10,26 @@ export default async function DigitalTablePage({
 }) {
   const { slug, tableCode } = await params;
 
-  if (slug !== restaurant.slug) {
-    notFound();
+  let qrToken: string;
+  try {
+    // The only place slug+tableCode (today's URL) are used - everything
+    // after this is resolved through the qrToken alone.
+    ({ qrToken } = await resolveTableByCode(slug, tableCode));
+  } catch (error) {
+    if (error instanceof ApiNotFoundError) notFound();
+    throw error;
   }
+
+  const menu = await fetchMenuByQrToken(qrToken);
 
   return (
     <>
-      <TableSessionBootstrap restaurantSlug={slug} tableCode={tableCode} />
+      <TableSessionBootstrap restaurantSlug={slug} tableCode={tableCode} qrToken={qrToken} />
       <DigitalTableHome
-        restaurant={restaurant}
+        restaurant={menu.restaurant}
         tableCode={tableCode}
-        dishes={dishes}
-        firstCategorySlug={categories[0].slug}
+        dishes={menu.dishes}
+        firstCategorySlug={menu.categories[0]?.slug ?? ""}
       />
     </>
   );

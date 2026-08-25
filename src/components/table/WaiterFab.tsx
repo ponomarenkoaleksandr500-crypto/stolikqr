@@ -6,8 +6,8 @@ import { useDialog } from "@/lib/useDialog";
 import { CheckIcon, CloseIcon } from "@/components/icons";
 import { BellIcon } from "./tableIcons";
 import * as waiterStore from "@/table/waiterStore";
+import * as paymentStore from "@/table/paymentStore";
 import { WAITER_REASONS } from "@/table/waiterReasons";
-import { useOrder } from "@/table/useOrder";
 import { useTableSession } from "@/table/TableSessionProvider";
 
 const CONFIRM_FEEDBACK_MS = 1300;
@@ -20,7 +20,7 @@ export function WaiterFab() {
     waiterStore.getSnapshot,
     waiterStore.getServerSnapshot,
   );
-  const onCooldown = waiterStore.isOnCooldown(call);
+  const active = waiterStore.isActive(call);
 
   return (
     <>
@@ -31,7 +31,7 @@ export function WaiterFab() {
         className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 items-center gap-2 rounded-full bg-ink-950 px-4 text-sm font-semibold text-paper shadow-lg shadow-ink-950/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
       >
         <BellIcon className="h-5 w-5 text-accent-300" />
-        {onCooldown ? t("waiter.cooldownLabel") : t("waiter.callButton")}
+        {active ? t("waiter.cooldownLabel") : t("waiter.callButton")}
       </button>
       {sheetOpen && <WaiterSheet onClose={() => setSheetOpen(false)} />}
     </>
@@ -41,9 +41,8 @@ export function WaiterFab() {
 function WaiterSheet({ onClose }: { onClose: () => void }) {
   const { t } = useLocale();
   const { dialogRef, closing, requestClose } = useDialog(onClose);
-  const { scheduleMockPayment } = useOrder();
-  const { session, table } = useTableSession();
-  const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+  const { session } = useTableSession();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const confirmTimeoutRef = useRef<number | null>(null);
 
   const call = useSyncExternalStore(
@@ -51,7 +50,7 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
     waiterStore.getSnapshot,
     waiterStore.getServerSnapshot,
   );
-  const onCooldown = waiterStore.isOnCooldown(call);
+  const active = waiterStore.isActive(call);
 
   useEffect(() => {
     return () => {
@@ -59,19 +58,19 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  const handleSelect = (reasonKey: string, requestsBill?: boolean) => {
-    // WaiterFab is only ever mounted in table mode (see RestaurantShell), so
-    // session/table are expected to be present; bail defensively if not.
-    if (!session || !table) return;
-    waiterStore.callWaiter(reasonKey, table.id, session.id);
-    if (requestsBill) scheduleMockPayment();
-    setConfirmedKey(reasonKey);
+  const handleSelect = async (reasonKey: string, requestsBill?: boolean) => {
+    if (!session || isSubmitting) return;
+    setIsSubmitting(true);
+    const result = await waiterStore.callWaiter(session.id, reasonKey);
+    setIsSubmitting(false);
+    if (!result) return;
+    if (requestsBill) void paymentStore.requestPayment(session.id);
     confirmTimeoutRef.current = window.setTimeout(requestClose, CONFIRM_FEEDBACK_MS);
   };
 
-  const showConfirmation = confirmedKey !== null || onCooldown;
-  const reasonKey = confirmedKey ?? call?.reasonKey ?? null;
-  const reason = WAITER_REASONS.find((candidate) => candidate.key === reasonKey);
+  const reason = call ? WAITER_REASONS.find((candidate) => candidate.key === call.reasonKey) : null;
+  const isBeingHandled = call?.status === "ACCEPTED" || call?.status === "IN_PROGRESS";
+  const statusTitleKey = isBeingHandled ? "waiter.acceptedTitle" : "waiter.confirmTitle";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
@@ -97,15 +96,13 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
           className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-ink-200 sm:hidden"
         />
 
-        {showConfirmation ? (
+        {active ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sage-100 text-sage-700">
               <CheckIcon className="h-6 w-6" />
             </span>
             <div>
-              <p className="font-display text-lg font-semibold text-ink-900">
-                {t("waiter.confirmTitle")}
-              </p>
+              <p className="font-display text-lg font-semibold text-ink-900">{t(statusTitleKey)}</p>
               {reason && <p className="mt-1 text-sm text-ink-500">{t(reason.labelKey)}</p>}
             </div>
             <button
@@ -138,8 +135,9 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
                 <button
                   key={option.key}
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => handleSelect(option.key, option.requestsBill)}
-                  className="flex min-h-12 items-center justify-between rounded-2xl border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                  className="flex min-h-12 items-center justify-between rounded-2xl border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {t(option.labelKey)}
                 </button>

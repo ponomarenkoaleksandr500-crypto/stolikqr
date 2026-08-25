@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
 import { useDialog } from "@/lib/useDialog";
@@ -20,9 +21,10 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   const { t } = useLocale();
   const { items, totalPrice, clearCart } = useCart();
   const { dialogRef, closing, requestClose } = useDialog(onClose);
-  const { isTableMode, session, table } = useTableSession();
+  const { isTableMode, session } = useTableSession();
   const { order, submitCartItems } = useOrder();
   const { selectedDish, setSelectedDish, excludedByDish, toggleIngredient } = useDishSelection();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasSubmittedItems = !isOrderEmpty(order);
   const showPaidState = isOrderSettled(order, items.length);
@@ -31,10 +33,12 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   const excludedDishIds = getExcludedDishIds(order, items);
   const recommended = getRecommendedDishes(dishes, excludedDishIds, 4);
 
-  const handlePlaceOrder = () => {
-    if (!session || !table || items.length === 0) return;
-    submitCartItems(items, table.id, session.id);
-    clearCart();
+  const handlePlaceOrder = async () => {
+    if (!session || items.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
+    const succeeded = await submitCartItems(items, session.id);
+    setIsSubmitting(false);
+    if (succeeded) clearCart();
   };
 
   const heading = isTableMode ? t("table.order") : t("cart.title");
@@ -156,7 +160,8 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
               <button
                 type="button"
                 onClick={handlePlaceOrder}
-                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                disabled={isSubmitting}
+                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {t("table.placeOrder")}
               </button>

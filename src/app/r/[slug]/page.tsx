@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { categories } from "@/data/categories";
+import { notFound, redirect } from "next/navigation";
+import { ApiNotFoundError, fetchMenuByRestaurantSlug } from "@/lib/api";
 
 export default async function RestaurantPage({
   params,
@@ -7,5 +7,16 @@ export default async function RestaurantPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  redirect(`/r/${slug}/${categories[0].slug}`);
+
+  let menu;
+  try {
+    menu = await fetchMenuByRestaurantSlug(slug);
+  } catch (error) {
+    if (error instanceof ApiNotFoundError) notFound();
+    throw error;
+  }
+
+  const firstCategory = menu.categories[0];
+  if (!firstCategory) notFound();
+  redirect(`/r/${slug}/${firstCategory.slug}`);
 }

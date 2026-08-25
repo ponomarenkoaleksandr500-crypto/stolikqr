@@ -33,6 +33,11 @@ export class OrdersController {
     return this.ordersService.findForGuestSession(id);
   }
 
+  @Post('guest-sessions/:id/orders/reorder')
+  reorder(@Param('id') id: string) {
+    return this.ordersService.reorder(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Patch('orders/:id/status')
   updateStatus(

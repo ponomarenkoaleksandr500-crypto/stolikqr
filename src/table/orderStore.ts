@@ -1,10 +1,23 @@
 import type { CartItem } from "@/cart/types";
 import type { KitchenStatus, Order, OrderItem } from "@/types/table";
-import { createOrder, fetchOrdersForGuestSession, type OrderItemResponse, type OrderResponse } from "@/lib/api";
+import {
+  createOrder,
+  fetchOrdersForGuestSession,
+  reorderLastOrder,
+  type OrderItemResponse,
+  type OrderResponse,
+  type ReorderSkippedItem,
+} from "@/lib/api";
 
 type Listener = () => void;
 
 let currentOrder: Order | null = null;
+// Raw last backend Order (unmerged), just for the "Order again" card - the
+// merged `currentOrder` view above collapses every round into one and loses
+// which items belonged to the most recent one.
+let lastRawOrder: OrderResponse | null = null;
+const EMPTY_SKIPPED: ReorderSkippedItem[] = [];
+let reorderNotice: ReorderSkippedItem[] = EMPTY_SKIPPED;
 const listeners = new Set<Listener>();
 
 function notify() {
@@ -17,6 +30,29 @@ export function getSnapshot(): Order | null {
 
 export function getServerSnapshot(): Order | null {
   return null;
+}
+
+export function getLastOrderSnapshot(): OrderResponse | null {
+  return lastRawOrder;
+}
+
+export function getLastOrderServerSnapshot(): OrderResponse | null {
+  return null;
+}
+
+export function getReorderNoticeSnapshot(): ReorderSkippedItem[] {
+  return reorderNotice;
+}
+
+export function getReorderNoticeServerSnapshot(): ReorderSkippedItem[] {
+  return EMPTY_SKIPPED;
+}
+
+/** Dismisses the "some items couldn't be restored" banner after the guest has seen it. */
+export function dismissReorderNotice(): void {
+  if (reorderNotice.length === 0) return;
+  reorderNotice = EMPTY_SKIPPED;
+  notify();
 }
 
 export function subscribe(listener: Listener) {
@@ -102,6 +138,7 @@ export async function loadOrderForSession(sessionId: string): Promise<void> {
   try {
     const apiOrders = await fetchOrdersForGuestSession(sessionId);
     currentOrder = mergeOrders(apiOrders, sessionId);
+    lastRawOrder = apiOrders[apiOrders.length - 1] ?? null;
     notify();
   } catch (error) {
     console.error("Failed to load orders for guest session", error);
@@ -134,8 +171,29 @@ export async function submitCartItems(cartItems: CartItem[], sessionId: string):
   }
 }
 
+/**
+ * D8 "Order again": repeats the table's last order. The server derives the
+ * items itself from that order and re-validates/re-prices everything against
+ * the live menu - this only ever sends a guestSessionId, nothing else. Any
+ * items the server couldn't restore are surfaced via reorderNotice.
+ * Returns whether a new order actually got created.
+ */
+export async function reorderLast(sessionId: string): Promise<boolean> {
+  try {
+    const result = await reorderLastOrder(sessionId);
+    reorderNotice = result.skippedItems;
+    await loadOrderForSession(sessionId);
+    return result.order !== null;
+  } catch (error) {
+    console.error("Failed to reorder", error);
+    return false;
+  }
+}
+
 /** Clears the local order view, e.g. when a guest session ends or the table changes. */
 export function clearOrder(): void {
   currentOrder = null;
+  lastRawOrder = null;
+  reorderNotice = EMPTY_SKIPPED;
   notify();
 }

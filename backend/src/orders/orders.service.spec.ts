@@ -32,6 +32,7 @@ const dish = {
   price: { toNumber: () => 210 },
   emoji: '🍔',
   gradient: 'from-amber-400 to-rose-500',
+  isAvailable: true,
   modifierGroups: [
     {
       id: 'group-doneness',
@@ -103,7 +104,12 @@ function buildMockPrisma() {
   return {
     guestSession: { findUnique: jest.fn() },
     dish: { findUnique: jest.fn() },
-    order: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+    order: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn<Promise<unknown>, [(tx: unknown) => unknown]>((cb) =>
       Promise.resolve(cb(tx)),
     ),
@@ -236,6 +242,16 @@ describe('OrdersService', () => {
     expect(prisma.__tx.order.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a dish that is no longer available', async () => {
+    prisma.guestSession.findUnique.mockResolvedValue(session);
+    prisma.dish.findUnique.mockResolvedValue({ ...dish, isAvailable: false });
+
+    await expect(service.create(baseDto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.__tx.order.create).not.toHaveBeenCalled();
+  });
+
   it('never leaves a partial write when the transaction fails (atomicity)', async () => {
     prisma.guestSession.findUnique.mockResolvedValue(session);
     prisma.dish.findUnique.mockResolvedValue(dish);
@@ -334,6 +350,125 @@ describe('OrdersService', () => {
             table: { location: { restaurantId: 'restaurant-1' } },
           },
         }),
+      );
+    });
+  });
+
+  describe('reorder', () => {
+    function lastOrderItem(overrides: Partial<Record<string, unknown>> = {}) {
+      return {
+        dishId: 'dish-1',
+        nameSnapshot: dish.name,
+        quantity: 2,
+        modifiersSnapshot: [
+          {
+            groupId: 'group-extras',
+            groupName: dish.modifierGroups[1].name,
+            choiceId: 'choice-bacon',
+            choiceName: dish.modifierGroups[1].choices[0].name,
+            priceDelta: 35,
+          },
+        ],
+        excludedIngredientsSnapshot: [],
+        ...overrides,
+      };
+    }
+
+    it('repeats every item with a freshly computed price, ignoring the old one', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findFirst.mockResolvedValue({
+        items: [lastOrderItem()],
+      });
+      prisma.dish.findUnique.mockResolvedValue(dish);
+
+      const result = await service.reorder('session-1');
+
+      expect(result.skippedItems).toEqual([]);
+      expect(result.order?.items[0].lineTotal).toBe(490); // (210 + 35) * 2, recomputed
+      expect(prisma.__tx.order.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips an item whose dish was deleted, but still places the rest', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findFirst.mockResolvedValue({
+        items: [
+          lastOrderItem({ dishId: 'dish-deleted', modifiersSnapshot: [] }),
+          lastOrderItem(),
+        ],
+      });
+      prisma.dish.findUnique.mockImplementation(
+        ({ where }: { where: { id: string } }) =>
+          Promise.resolve(where.id === 'dish-1' ? dish : null),
+      );
+
+      const result = await service.reorder('session-1');
+
+      expect(result.skippedItems).toEqual([
+        { name: dish.name, quantity: 2, reason: 'NOT_FOUND' },
+      ]);
+      expect(result.order?.items).toHaveLength(1);
+    });
+
+    it('skips an item whose dish became unavailable', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findFirst.mockResolvedValue({
+        items: [lastOrderItem({ modifiersSnapshot: [] })],
+      });
+      prisma.dish.findUnique.mockResolvedValue({
+        ...dish,
+        isAvailable: false,
+      });
+
+      const result = await service.reorder('session-1');
+
+      expect(result.order).toBeNull();
+      expect(result.skippedItems).toEqual([
+        { name: dish.name, quantity: 2, reason: 'UNAVAILABLE' },
+      ]);
+      expect(prisma.__tx.order.create).not.toHaveBeenCalled();
+    });
+
+    it('skips an item whose modifier choice no longer exists on the dish', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findFirst.mockResolvedValue({
+        items: [
+          lastOrderItem({
+            modifiersSnapshot: [
+              {
+                groupId: 'group-extras',
+                groupName: dish.modifierGroups[1].name,
+                choiceId: 'choice-removed',
+                choiceName: { uk: 'Видалено', en: 'Removed' },
+                priceDelta: 20,
+              },
+            ],
+          }),
+        ],
+      });
+      prisma.dish.findUnique.mockResolvedValue(dish);
+
+      const result = await service.reorder('session-1');
+
+      expect(result.order).toBeNull();
+      expect(result.skippedItems).toEqual([
+        { name: dish.name, quantity: 2, reason: 'OPTIONS_CHANGED' },
+      ]);
+    });
+
+    it('rejects an unknown guest session', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(null);
+
+      await expect(service.reorder('nope')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('rejects a table with no previous order to repeat', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findFirst.mockResolvedValue(null);
+
+      await expect(service.reorder('session-1')).rejects.toBeInstanceOf(
+        NotFoundException,
       );
     });
   });

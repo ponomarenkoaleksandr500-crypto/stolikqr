@@ -5,11 +5,14 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { useCart } from "@/cart/CartProvider";
 import { useOrder } from "@/table/useOrder";
+import { useTableSession } from "@/table/TableSessionProvider";
 import { isOrderActive, isOrderSettled } from "@/table/orderStatus";
 import { getExcludedDishIds, getRecommendedDishes } from "@/lib/recommendations";
 import { useDishSelection } from "@/components/menu/useDishSelection";
 import { DishModal } from "@/components/menu/DishModal";
+import { CloseIcon } from "@/components/icons";
 import { OrderStatusCard } from "./OrderStatusCard";
+import { OrderAgainCard } from "./OrderAgainCard";
 import { RecommendationsShelf } from "./RecommendationsShelf";
 import type { Dish, Restaurant } from "@/types/menu";
 
@@ -26,7 +29,8 @@ export function DigitalTableHome({
 }) {
   const { text, t } = useLocale();
   const { items: cartItems, open: openCart } = useCart();
-  const { order } = useOrder();
+  const { session } = useTableSession();
+  const { order, lastOrder, reorderNotice, reorderLast, dismissReorderNotice } = useOrder();
   const { selectedDish, setSelectedDish, excludedByDish, toggleIngredient } = useDishSelection();
 
   const menuHref = `/r/${restaurant.slug}/${firstCategorySlug}`;
@@ -54,10 +58,44 @@ export function DigitalTableHome({
         <p className="font-display text-4xl font-bold leading-none text-ink-950">{tableCode}</p>
       </div>
 
+      {reorderNotice.length > 0 && (
+        <div className="rounded-2xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-700">
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-medium">{t("table.orderAgainSkippedIntro")}</p>
+            <button
+              type="button"
+              onClick={dismissReorderNotice}
+              aria-label={t("dish.close")}
+              className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-accent-600 transition-colors hover:bg-accent-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <ul className="mt-1.5 list-disc pl-4">
+            {reorderNotice.map((item, index) => (
+              <li key={index}>
+                {item.quantity} × {text(item.name)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {showPaidState ? (
-        <div className="rounded-2xl bg-sage-100 p-5 text-center">
-          <p className="font-display text-lg font-semibold text-sage-700">{t("table.paidTitle")}</p>
-          <p className="mt-1.5 text-sm text-sage-700/80">{t("table.paidHint")}</p>
+        <div className="flex flex-col gap-3">
+          <div className="rounded-2xl bg-sage-100 p-5 text-center">
+            <p className="font-display text-lg font-semibold text-sage-700">{t("table.paidTitle")}</p>
+            <p className="mt-1.5 text-sm text-sage-700/80">{t("table.paidHint")}</p>
+          </div>
+          {lastOrder && session && (
+            <OrderAgainCard lastOrder={lastOrder} onReorder={() => reorderLast(session.id)} />
+          )}
+          <Link
+            href={menuHref}
+            className="flex min-h-12 items-center justify-center rounded-2xl border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+          >
+            {t("table.backToMenu")}
+          </Link>
         </div>
       ) : showActiveOrder && order ? (
         <>

@@ -10,10 +10,24 @@ export function useOrder() {
     orderStore.getSnapshot,
     orderStore.getServerSnapshot,
   );
+  const lastOrder = useSyncExternalStore(
+    orderStore.subscribe,
+    orderStore.getLastOrderSnapshot,
+    orderStore.getLastOrderServerSnapshot,
+  );
+  const reorderNotice = useSyncExternalStore(
+    orderStore.subscribe,
+    orderStore.getReorderNoticeSnapshot,
+    orderStore.getReorderNoticeServerSnapshot,
+  );
 
   return {
     order,
+    lastOrder,
+    reorderNotice,
     submitCartItems: orderStore.submitCartItems,
+    reorderLast: orderStore.reorderLast,
+    dismissReorderNotice: orderStore.dismissReorderNotice,
     clearOrder: orderStore.clearOrder,
   };
 }

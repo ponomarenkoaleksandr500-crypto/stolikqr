@@ -13,10 +13,20 @@ import type {
   ModifierSnapshotDto,
   OrderDto,
   OrderItemDto,
+  ReorderResultDto,
+  ReorderSkipReason,
+  ReorderSkippedItemDto,
 } from './orders.types';
 import { DomainEvents } from '../realtime/domain-events';
 import type { AuthenticatedStaff } from '../auth/auth.types';
 import type { $Enums } from '../../generated/prisma/client';
+
+// Distinguishable subclasses (still real NotFound/BadRequest responses for
+// the normal POST /orders flow) so reorder() can tell WHY a given item from
+// the last order failed re-validation without parsing error messages.
+class DishNotFoundError extends NotFoundException {}
+class DishUnavailableError extends BadRequestException {}
+class DishOptionsChangedError extends BadRequestException {}
 
 // One-directional lifecycle, no skipping and no going back - same discipline
 // as WaiterCallsService. This transitions the ORDER as a whole; per-item
@@ -45,6 +55,7 @@ interface DishWithOptions {
   price: { toNumber(): number };
   emoji: string | null;
   gradient: string | null;
+  isAvailable: boolean;
   modifierGroups: {
     id: string;
     name: unknown;
@@ -98,11 +109,99 @@ export class OrdersService {
       prepared.push(await this.prepareItem(itemDto));
     }
 
+    return this.persistOrder(
+      session.tableId,
+      session.id,
+      session.table.location.restaurantId,
+      prepared,
+    );
+  }
+
+  /**
+   * D8 "Order again": repeats the table's most recent Order. Every item is
+   * re-validated against the LIVE menu independently via the same
+   * prepareItem() used by create() - nothing here trusts the old order's
+   * stored price, and a dish that's since been deleted, marked unavailable,
+   * or had its modifiers/ingredients change just drops that one item (with
+   * a reason) instead of failing the whole reorder.
+   */
+  async reorder(guestSessionId: string): Promise<ReorderResultDto> {
+    const session = await this.prisma.guestSession.findUnique({
+      where: { id: guestSessionId },
+      include: { table: { include: { location: true } } },
+    });
+    if (!session)
+      throw new NotFoundException(`Unknown guest session: ${guestSessionId}`);
+
+    const lastOrder = await this.prisma.order.findFirst({
+      where: { tableId: session.tableId },
+      include: { items: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!lastOrder) {
+      throw new NotFoundException('This table has no previous order to repeat');
+    }
+
+    const prepared: PreparedItem[] = [];
+    const skippedItems: ReorderSkippedItemDto[] = [];
+
+    for (const item of lastOrder.items) {
+      const modifierChoiceIds = (
+        (item.modifiersSnapshot as ModifierSnapshotDto[] | null) ?? []
+      ).map((m) => m.choiceId);
+      const excludedIngredientIds = (
+        (item.excludedIngredientsSnapshot as
+          ExcludedIngredientSnapshotDto[] | null) ?? []
+      ).map((e) => e.id);
+
+      try {
+        prepared.push(
+          await this.prepareItem({
+            dishId: item.dishId,
+            quantity: item.quantity,
+            modifierChoiceIds,
+            excludedIngredientIds,
+          }),
+        );
+      } catch (err) {
+        const reason: ReorderSkipReason =
+          err instanceof DishNotFoundError
+            ? 'NOT_FOUND'
+            : err instanceof DishUnavailableError
+              ? 'UNAVAILABLE'
+              : 'OPTIONS_CHANGED';
+        skippedItems.push({
+          name: asLocalized(item.nameSnapshot),
+          quantity: item.quantity,
+          reason,
+        });
+      }
+    }
+
+    if (prepared.length === 0) {
+      return { order: null, skippedItems };
+    }
+
+    const order = await this.persistOrder(
+      session.tableId,
+      session.id,
+      session.table.location.restaurantId,
+      prepared,
+    );
+    return { order, skippedItems };
+  }
+
+  private async persistOrder(
+    tableId: string,
+    guestSessionId: string,
+    restaurantId: string,
+    prepared: PreparedItem[],
+  ): Promise<OrderDto> {
     const order = await this.prisma.$transaction(async (tx) => {
       return tx.order.create({
         data: {
-          tableId: session.tableId,
-          guestSessionId: session.id,
+          tableId,
+          guestSessionId,
           status: 'NEW',
           items: {
             create: prepared.map((item) => this.toOrderItemCreateInput(item)),
@@ -114,8 +213,8 @@ export class OrdersService {
 
     const dtoResult = this.toOrderDto(order);
     this.eventEmitter.emit(DomainEvents.ORDER_CREATED, {
-      restaurantId: session.table.location.restaurantId,
-      tableId: session.tableId,
+      restaurantId,
+      tableId,
       order: dtoResult,
     });
     return dtoResult;
@@ -210,7 +309,12 @@ export class OrdersService {
         ingredients: true,
       },
     });
-    if (!dish) throw new NotFoundException(`Unknown dish: ${itemDto.dishId}`);
+    if (!dish) throw new DishNotFoundError(`Unknown dish: ${itemDto.dishId}`);
+    if (!dish.isAvailable) {
+      throw new DishUnavailableError(
+        `Dish is no longer available: ${dish.slug}`,
+      );
+    }
 
     const allChoices = dish.modifierGroups.flatMap((group) =>
       group.choices.map((choice) => ({ group, choice })),
@@ -219,7 +323,7 @@ export class OrdersService {
     const chosenChoices = (itemDto.modifierChoiceIds ?? []).map((choiceId) => {
       const match = allChoices.find((c) => c.choice.id === choiceId);
       if (!match) {
-        throw new BadRequestException(
+        throw new DishOptionsChangedError(
           `Modifier choice ${choiceId} does not exist on dish ${dish.slug}`,
         );
       }
@@ -239,7 +343,7 @@ export class OrdersService {
     ).map((ingredientId) => {
       const match = dish.ingredients.find((i) => i.id === ingredientId);
       if (!match) {
-        throw new BadRequestException(
+        throw new DishOptionsChangedError(
           `Ingredient ${ingredientId} does not exist on dish ${dish.slug}`,
         );
       }

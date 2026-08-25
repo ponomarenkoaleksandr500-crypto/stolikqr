@@ -57,6 +57,10 @@ export const translations = {
     "table.paidTitle": "Замовлення оплачено",
     "table.paidHint": "Дякуємо, що завітали! До зустрічі.",
     "table.backToMenu": "До меню",
+    "table.orderAgainTitle": "Ваше попереднє замовлення",
+    "table.orderAgainButton": "Замовити ще раз",
+    "table.orderAgainFailed": "Не вдалося оформити замовлення. Спробуйте ще раз.",
+    "table.orderAgainSkippedIntro": "Деякі позиції зараз недоступні й не увійшли до нового замовлення:",
 
     "waiter.title": "Викликати офіціанта",
     "waiter.reasonHint": "Оберіть причину — офіціант отримає сповіщення миттєво",
@@ -133,6 +137,10 @@ export const translations = {
     "table.paidTitle": "Order paid",
     "table.paidHint": "Thanks for stopping by! See you again.",
     "table.backToMenu": "Back to menu",
+    "table.orderAgainTitle": "Your previous order",
+    "table.orderAgainButton": "Order again",
+    "table.orderAgainFailed": "Couldn't place the order. Please try again.",
+    "table.orderAgainSkippedIntro": "Some items are no longer available and weren't included in the new order:",
 
     "waiter.title": "Call the waiter",
     "waiter.reasonHint": "Pick a reason - your server is notified instantly",

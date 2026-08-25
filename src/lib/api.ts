@@ -146,6 +146,33 @@ export function fetchOrdersForGuestSession(guestSessionId: string): Promise<Orde
   });
 }
 
+export type ReorderSkipReason = "NOT_FOUND" | "UNAVAILABLE" | "OPTIONS_CHANGED";
+
+export interface ReorderSkippedItem {
+  name: LocalizedText;
+  quantity: number;
+  reason: ReorderSkipReason;
+}
+
+export interface ReorderResponse {
+  order: OrderResponse | null;
+  skippedItems: ReorderSkippedItem[];
+}
+
+/**
+ * "Order again" (D8): the server re-derives everything from the table's last
+ * Order and re-validates it against the LIVE menu - dishId/modifier/ingredient
+ * ids only, never the old price. Items that no longer validate (deleted,
+ * unavailable, changed modifiers) are skipped individually rather than
+ * failing the whole request - see ReorderResponse.skippedItems.
+ */
+export function reorderLastOrder(guestSessionId: string): Promise<ReorderResponse> {
+  return apiFetch<ReorderResponse>(
+    `/guest-sessions/${encodeURIComponent(guestSessionId)}/orders/reorder`,
+    { method: "POST" },
+  );
+}
+
 export interface WaiterCallResponse {
   id: string;
   tableId: string;

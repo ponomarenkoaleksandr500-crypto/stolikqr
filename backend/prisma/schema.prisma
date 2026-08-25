@@ -1,0 +1,381 @@
+// StolikQR Demo Platform v1 — schema
+// Entities and relations per the fixed architecture doc (see /home/ubuntu/Projects/StolikQR-Demo-Platform-v1.odt).
+// Localized text (uk/en) is stored as Json to mirror the client's Record<Locale, string> shape.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  // nest build compiles to CommonJS (tsconfig "module": "nodenext" resolves to
+  // CJS since package.json has no "type": "module") — force the generated
+  // client to match, otherwise its ESM-only `import.meta.url` usage breaks
+  // at runtime under ts-node/nest's CJS loader.
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy / floor
+// ---------------------------------------------------------------------------
+
+model Restaurant {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         Json
+  description  Json?
+  address      Json?
+  workingHours Json?
+  createdAt    DateTime @default(now())
+
+  locations       Location[]
+  staffUsers      StaffUser[]
+  analyticsEvents AnalyticsEvent[]
+}
+
+model Location {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  address      String?
+  timezone     String?
+  createdAt    DateTime   @default(now())
+
+  tables Table[]
+  menus  Menu[]
+
+  @@index([restaurantId])
+}
+
+model Table {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+  code       String
+  qrToken    String   @unique
+  label      String?
+  zone       String?
+  capacity   Int?
+  createdAt  DateTime @default(now())
+
+  guestSessions GuestSession[]
+  orders        Order[]
+  waiterCalls   WaiterCall[]
+  payments      Payment[]
+
+  @@unique([locationId, code])
+}
+
+// ---------------------------------------------------------------------------
+// Guest
+// ---------------------------------------------------------------------------
+
+// `id` is the opaque session identifier returned to and persisted by the
+// client (replaces the client's own crypto.randomUUID(), same localStorage
+// slot). `deviceToken` is a separate, stable-per-browser value (its own
+// localStorage entry) used only to answer "is this the same device coming
+// back to this table" on POST /guest-sessions — it is deliberately not
+// unique: one device accumulates many session rows across tables/visits
+// over time, and a table can have many devices across its history.
+model GuestSession {
+  id          String    @id @default(cuid())
+  tableId     String
+  table       Table     @relation(fields: [tableId], references: [id])
+  deviceToken String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  orders          Order[]
+  waiterCalls     WaiterCall[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([tableId, deviceToken])
+}
+
+// ---------------------------------------------------------------------------
+// Menu
+// ---------------------------------------------------------------------------
+
+model Menu {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+  name       String
+  isActive   Boolean  @default(true)
+
+  categories Category[]
+
+  @@index([locationId])
+}
+
+model Category {
+  id        String @id @default(cuid())
+  menuId    String
+  menu      Menu   @relation(fields: [menuId], references: [id])
+  slug      String
+  name      Json
+  sortOrder Int    @default(0)
+
+  dishes Dish[]
+
+  @@unique([menuId, slug])
+}
+
+model Dish {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  slug        String
+  name        Json
+  description Json?
+  price       Decimal  @db.Decimal(10, 2)
+  photoUrl    String?
+  emoji       String?
+  gradient    String?
+  // Optional per-locale tag chips (e.g. "vegetarian"), shown on DishCard/DishModal
+  // in the current UI — mirrors the client's Dish.tags?: Record<Locale, string[]>.
+  tags        Json?
+  sortOrder   Int      @default(0)
+  isAvailable Boolean  @default(true)
+  featured    Boolean  @default(false)
+
+  modifierGroups  ModifierGroup[]
+  ingredients     DishIngredient[]
+  orderItems      OrderItem[]
+  recommendedFrom Recommendation[] @relation("RecommendationSource")
+  recommendedTo   Recommendation[] @relation("RecommendationTarget")
+  analyticsEvents AnalyticsEvent[]
+
+  @@unique([categoryId, slug])
+}
+
+// `exclusive` lives on the CHOICE, not the group — matches the current
+// client model (src/types/menu.ts OptionChoice.exclusive?) and its semantics
+// in src/lib/dishOptions.ts: within a `multiple: true` group, selecting an
+// exclusive choice clears every other selection, and selecting any regular
+// choice clears the exclusive one. A `required`/`multiple` group has no
+// group-level "exclusive" concept.
+model ModifierGroup {
+  id        String  @id @default(cuid())
+  dishId    String
+  dish      Dish    @relation(fields: [dishId], references: [id])
+  name      Json
+  required  Boolean @default(false)
+  multiple  Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  choices ModifierChoice[]
+
+  @@index([dishId])
+}
+
+model ModifierChoice {
+  id         String        @id @default(cuid())
+  groupId    String
+  group      ModifierGroup @relation(fields: [groupId], references: [id])
+  name       Json
+  priceDelta Decimal       @default(0) @db.Decimal(10, 2)
+  exclusive  Boolean       @default(false)
+  sortOrder  Int           @default(0)
+
+  @@index([groupId])
+}
+
+model DishIngredient {
+  id     String  @id @default(cuid())
+  dishId String
+  dish   Dish    @relation(fields: [dishId], references: [id])
+  name   Json
+  icon   String?
+
+  @@index([dishId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+// Order/OrderItem lifecycle, per the D3 spec (supersedes the PENDING/IN_PROGRESS/
+// COMPLETED naming from the earlier Demo Platform v1 audit for THIS enum only —
+// WaiterCallStatus below is untouched). D3 only ever creates rows as NEW; the
+// remaining values exist for the future Waiter/Kitchen apps to drive, once
+// status-change endpoints are built — no guest-facing code depends on them yet
+// (the Guest App's progress stepper stays on its own client-only mock timer,
+// see stolikqr/src/table/orderStore.ts).
+enum OrderStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  tableId        String
+  table          Table         @relation(fields: [tableId], references: [id])
+  guestSessionId String?
+  guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
+  status         OrderStatus   @default(NEW)
+  createdAt      DateTime      @default(now())
+  paidAt         DateTime?
+
+  items OrderItem[]
+
+  @@index([tableId])
+}
+
+// Every "snapshot" field is derived and frozen SERVER-SIDE at order time from
+// the real Dish/ModifierGroup/ModifierChoice/DishIngredient rows — never from
+// client-sent names or prices — and must never change if the live Dish
+// changes later (today's price stays today's price on an existing order).
+// modifiersSnapshot / excludedIngredientsSnapshot / the two summary fields
+// exist purely so the Guest App can redraw an OrderLineItem-shaped card after
+// a reload without the frontend needing to re-derive display text itself.
+model OrderItem {
+  id                          String      @id @default(cuid())
+  orderId                     String
+  order                       Order       @relation(fields: [orderId], references: [id])
+  dishId                      String
+  dish                        Dish        @relation(fields: [dishId], references: [id])
+  dishSlug                    String
+  nameSnapshot                Json
+  emojiSnapshot               String?
+  gradientSnapshot            String?
+  basePriceSnapshot           Decimal     @db.Decimal(10, 2)
+  // [{ groupId, groupName, choiceId, choiceName, priceDelta }]
+  modifiersSnapshot           Json?
+  // [{ id, name }]
+  excludedIngredientsSnapshot Json?
+  selectionsSummarySnapshot   Json?
+  excludedSummarySnapshot     Json?
+  quantity                    Int         @default(1)
+  lineTotal                   Decimal     @db.Decimal(10, 2)
+  status                      OrderStatus @default(NEW)
+  createdAt                   DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// Waiter
+// ---------------------------------------------------------------------------
+
+enum WaiterCallStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// tableId is the owner (one active call per table at a time - enforced in
+// WaiterCallsService.create, mirroring Order's tableId/guestSessionId split);
+// guestSessionId is only provenance, same reasoning as Order.
+model WaiterCall {
+  id             String           @id @default(cuid())
+  tableId        String
+  table          Table            @relation(fields: [tableId], references: [id])
+  guestSessionId String?
+  guestSession   GuestSession?    @relation(fields: [guestSessionId], references: [id])
+  reasonKey      String
+  status         WaiterCallStatus @default(PENDING)
+  calledAt       DateTime         @default(now())
+  acceptedAt     DateTime?
+  inProgressAt   DateTime?
+  completedAt    DateTime?
+  staffUserId    String?
+  staffUser      StaffUser?       @relation(fields: [staffUserId], references: [id])
+
+  @@index([tableId])
+}
+
+model StaffUser {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+
+  waiterCalls WaiterCall[]
+
+  @@index([restaurantId])
+}
+
+// ---------------------------------------------------------------------------
+// Analytics / recommendations
+// ---------------------------------------------------------------------------
+
+model AnalyticsEvent {
+  id             String        @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant    @relation(fields: [restaurantId], references: [id])
+  tableId        String?
+  guestSessionId String?
+  guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
+  dishId         String?
+  dish           Dish?         @relation(fields: [dishId], references: [id])
+  name           String
+  payload        Json?
+  occurredAt     DateTime      @default(now())
+
+  @@index([restaurantId, name, occurredAt])
+}
+
+enum RecommendationSource {
+  MANUAL
+  RULE_BASED
+  ANALYTICS_BASED
+  AI
+}
+
+model Recommendation {
+  id            String               @id @default(cuid())
+  dishId        String
+  dish          Dish                 @relation("RecommendationSource", fields: [dishId], references: [id])
+  relatedDishId String
+  relatedDish   Dish                 @relation("RecommendationTarget", fields: [relatedDishId], references: [id])
+  source        RecommendationSource @default(MANUAL)
+  score         Float?
+
+  @@unique([dishId, relatedDishId])
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+// Only MOCK exists today - no real merchant credentials for LiqPay/Monobank
+// are available in this environment. The provider abstraction (see backend
+// src/payments/provider) is shaped so a real adapter slots in later without
+// touching PaymentsService, the schema, or any frontend code.
+enum PaymentProvider {
+  MOCK
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// Scoped to the TABLE, not a single Order - a guest's visit can span several
+// Order rows (see OrdersService: one submission round = one Order), and
+// "pay" settles the table's whole current open tab, not just one round.
+model Payment {
+  id          String          @id @default(cuid())
+  tableId     String
+  table       Table           @relation(fields: [tableId], references: [id])
+  provider    PaymentProvider @default(MOCK)
+  providerRef String          @unique
+  amount      Decimal         @db.Decimal(10, 2)
+  status      PaymentStatus   @default(PENDING)
+  createdAt   DateTime        @default(now())
+  confirmedAt DateTime?
+
+  @@index([tableId])
+}

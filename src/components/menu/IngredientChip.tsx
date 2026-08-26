@@ -23,6 +23,24 @@ export function IngredientChip({
   const { text, t } = useLocale();
   const isSmall = size === "sm";
 
+  // Admin-marked "constant" ingredients are shown but can't be excluded - no
+  // button semantics, no toggle icon, just a static pill (see menu editor).
+  if (!ingredient.removable) {
+    return (
+      <span
+        className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-ink-200 bg-surface font-medium text-ink-700 ${
+          isSmall ? "px-2.5 text-[11px]" : "px-3 text-xs"
+        }`}
+      >
+        <IngredientGlyph
+          icon={ingredient.icon}
+          className={`shrink-0 text-accent-600 ${isSmall ? "h-3.5 w-3.5" : "h-4 w-4"}`}
+        />
+        {text(ingredient.name)}
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -38,7 +56,7 @@ export function IngredientChip({
         isSmall ? "px-2.5 text-[11px]" : "px-3 text-xs"
       } ${
         excluded
-          ? "border-ink-200 bg-ink-50 text-ink-400"
+          ? "border-ink-200 bg-ink-50 text-ink-600"
           : "border-ink-200 bg-surface text-ink-700 hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700"
       }`}
     >

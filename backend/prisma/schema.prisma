@@ -27,6 +27,9 @@ model Restaurant {
   description  Json?
   address      Json?
   workingHours Json?
+  // Site-wide color theme (see Admin App "Тема") - one of a fixed set of
+  // preset keys defined in src/app/globals.css, not a free-form color value.
+  themeKey     String   @default("classic")
   createdAt    DateTime @default(now())
 
   locations       Location[]
@@ -59,6 +62,11 @@ model Table {
   zone       String?
   capacity   Int?
   createdAt  DateTime @default(now())
+  // Set by staff "close table" (old guests left, table awaits new ones).
+  // Marks the boundary of the current visit - orders/reorder history from
+  // before this timestamp belong to a past, already-settled visit and must
+  // never resurface for whoever sits down next (see OrdersService).
+  lastClosedAt DateTime?
 
   guestSessions GuestSession[]
   orders        Order[]
@@ -160,7 +168,7 @@ model Dish {
 model ModifierGroup {
   id        String  @id @default(cuid())
   dishId    String
-  dish      Dish    @relation(fields: [dishId], references: [id])
+  dish      Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
   name      Json
   required  Boolean @default(false)
   multiple  Boolean @default(false)
@@ -174,7 +182,7 @@ model ModifierGroup {
 model ModifierChoice {
   id         String        @id @default(cuid())
   groupId    String
-  group      ModifierGroup @relation(fields: [groupId], references: [id])
+  group      ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   name       Json
   priceDelta Decimal       @default(0) @db.Decimal(10, 2)
   exclusive  Boolean       @default(false)
@@ -184,11 +192,14 @@ model ModifierChoice {
 }
 
 model DishIngredient {
-  id     String  @id @default(cuid())
-  dishId String
-  dish   Dish    @relation(fields: [dishId], references: [id])
-  name   Json
-  icon   String?
+  id        String  @id @default(cuid())
+  dishId    String
+  dish      Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  name      Json
+  icon      String?
+  // Admin-set "constant" flag - false means the guest sees this ingredient
+  // listed but can't exclude it (see IngredientChip.tsx).
+  removable Boolean @default(true)
 
   @@index([dishId])
 }
@@ -291,6 +302,11 @@ model WaiterCall {
   @@index([tableId])
 }
 
+enum StaffRole {
+  WAITER
+  ADMIN
+}
+
 model StaffUser {
   id           String     @id @default(cuid())
   restaurantId String
@@ -298,6 +314,7 @@ model StaffUser {
   name         String
   email        String     @unique
   passwordHash String
+  role         StaffRole  @default(WAITER)
   createdAt    DateTime   @default(now())
 
   waiterCalls WaiterCall[]
@@ -317,7 +334,11 @@ model AnalyticsEvent {
   guestSessionId String?
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
   dishId         String?
-  dish           Dish?         @relation(fields: [dishId], references: [id])
+  // A dish can be deleted after being fully removed from stop-list rotation -
+  // analytics history (views/add-to-cart, not order history) survives with
+  // dishId cleared rather than blocking the deletion like OrdersService/
+  // MenuService.deleteDish's OrderItem check does.
+  dish           Dish?         @relation(fields: [dishId], references: [id], onDelete: SetNull)
   name           String
   payload        Json?
   occurredAt     DateTime      @default(now())
@@ -335,9 +356,9 @@ enum RecommendationSource {
 model Recommendation {
   id            String               @id @default(cuid())
   dishId        String
-  dish          Dish                 @relation("RecommendationSource", fields: [dishId], references: [id])
+  dish          Dish                 @relation("RecommendationSource", fields: [dishId], references: [id], onDelete: Cascade)
   relatedDishId String
-  relatedDish   Dish                 @relation("RecommendationTarget", fields: [relatedDishId], references: [id])
+  relatedDish   Dish                 @relation("RecommendationTarget", fields: [relatedDishId], references: [id], onDelete: Cascade)
   source        RecommendationSource @default(MANUAL)
   score         Float?
 
@@ -353,7 +374,16 @@ model Recommendation {
 // src/payments/provider) is shaped so a real adapter slots in later without
 // touching PaymentsService, the schema, or any frontend code.
 enum PaymentProvider {
+  // Default when staff settles the tab in person (the "bring the bill"
+  // waiter-call flow) - no guest-chosen method involved.
   MOCK
+  // Guest self-checkout methods (see PaymentsService.create) - stubs for
+  // now (no real gateway wired up yet), settled instantly rather than via
+  // MockPaymentProvider's simulated async delay.
+  CARD
+  APPLE_PAY
+  GOOGLE_PAY
+  EXPIRENZA
 }
 
 enum PaymentStatus {

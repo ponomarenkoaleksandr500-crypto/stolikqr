@@ -59,13 +59,13 @@ export function OrderAgainCard({
           type="button"
           onClick={() => void handleClick()}
           disabled={isSubmitting}
-          className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {t("table.orderAgainButton")}
         </button>
       </div>
       {failed && (
-        <p className="mt-2 text-xs font-medium text-red-600">{t("table.orderAgainFailed")}</p>
+        <p className="mt-2 text-xs font-medium text-red-600">{t("table.orderPlacementFailed")}</p>
       )}
     </div>
   );

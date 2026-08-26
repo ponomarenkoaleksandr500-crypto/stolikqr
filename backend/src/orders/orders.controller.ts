@@ -33,6 +33,15 @@ export class OrdersController {
     return this.ordersService.findForGuestSession(id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('tables/:id/orders')
+  findCurrentForTable(
+    @Param('id') id: string,
+    @CurrentStaff() staff: AuthenticatedStaff,
+  ) {
+    return this.ordersService.findCurrentForTable(id, staff);
+  }
+
   @Post('guest-sessions/:id/orders/reorder')
   reorder(@Param('id') id: string) {
     return this.ordersService.reorder(id);

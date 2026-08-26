@@ -24,11 +24,17 @@ export function WaiterFab() {
 
   return (
     <>
+      {/* Keyed by status so the button visibly announces itself the moment
+          the waiter accepts/progresses the call over the socket - the guest
+          may well be off browsing the menu, not staring at this pixel. */}
       <button
+        key={call?.status ?? "idle"}
         type="button"
         onClick={() => setSheetOpen(true)}
         aria-label={t("waiter.title")}
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 items-center gap-2 rounded-full bg-ink-950 px-4 text-sm font-semibold text-paper shadow-lg shadow-ink-950/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 items-center gap-2 rounded-full bg-ink-950 px-4 text-sm font-semibold text-paper shadow-lg shadow-ink-950/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 ${
+          call ? "animate-attention-pop" : ""
+        }`}
       >
         <BellIcon className="h-5 w-5 text-accent-300" />
         {active ? t("waiter.cooldownLabel") : t("waiter.callButton")}
@@ -43,6 +49,7 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
   const { dialogRef, closing, requestClose } = useDialog(onClose);
   const { session } = useTableSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [callFailed, setCallFailed] = useState(false);
   const confirmTimeoutRef = useRef<number | null>(null);
 
   const call = useSyncExternalStore(
@@ -61,9 +68,13 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
   const handleSelect = async (reasonKey: string, requestsBill?: boolean) => {
     if (!session || isSubmitting) return;
     setIsSubmitting(true);
+    setCallFailed(false);
     const result = await waiterStore.callWaiter(session.id, reasonKey);
     setIsSubmitting(false);
-    if (!result) return;
+    if (!result) {
+      setCallFailed(true);
+      return;
+    }
     if (requestsBill) void paymentStore.requestPayment(session.id);
     confirmTimeoutRef.current = window.setTimeout(requestClose, CONFIRM_FEEDBACK_MS);
   };
@@ -143,6 +154,11 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
                 </button>
               ))}
             </div>
+            {callFailed && (
+              <p className="mt-3 text-center text-xs font-medium text-red-600">
+                {t("waiter.callFailed")}
+              </p>
+            )}
           </>
         )}
       </div>

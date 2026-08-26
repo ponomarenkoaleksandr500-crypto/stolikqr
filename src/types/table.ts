@@ -20,7 +20,7 @@ export interface GuestSession {
 }
 
 /** Kitchen-facing progress of a submitted dish. "paid" lives on the Order itself, not per item. */
-export type KitchenStatus = "accepted" | "preparing" | "ready";
+export type KitchenStatus = "accepted" | "preparing" | "ready" | "served";
 
 /** Every guest-visible stage, including the order-level "paid" stage. */
 export type OrderStageStatus = KitchenStatus | "paid";
@@ -33,10 +33,6 @@ export type OrderStageStatus = KitchenStatus | "paid";
 export interface OrderItem extends CartItem {
   status: KitchenStatus;
   batchIndex: number;
-  /** When this item was first submitted to the kitchen (for display). */
-  sentAt: number;
-  /** When it entered its *current* status (used to resume mock progression after reload). */
-  stageSince: number;
 }
 
 /**

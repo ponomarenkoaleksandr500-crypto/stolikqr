@@ -4,3 +4,7 @@ node_modules
 .env
 
 /generated/prisma
+
+# Uploaded dish photos (see MenuService.setDishPhoto) - served locally via
+# app.useStaticAssets in main.ts, not part of the repo.
+/uploads

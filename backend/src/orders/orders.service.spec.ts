@@ -23,6 +23,7 @@ const staff: AuthenticatedStaff = {
   id: 'staff-1',
   restaurantId: 'restaurant-1',
   email: 'waiter@demo.stolikqr.app',
+  role: 'WAITER',
 };
 
 const dish = {
@@ -110,8 +111,14 @@ function buildMockPrisma() {
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    $transaction: jest.fn<Promise<unknown>, [(tx: unknown) => unknown]>((cb) =>
-      Promise.resolve(cb(tx)),
+    orderItem: { updateMany: jest.fn() },
+    // create() uses the callback form ($transaction(async (tx) => ...));
+    // updateStatus() uses the array form ($transaction([p1, p2])), same as
+    // PaymentsService's mock - support both here rather than forcing one
+    // style on every caller.
+    $transaction: jest.fn(
+      (arg: ((txClient: typeof tx) => unknown) | Promise<unknown>[]) =>
+        Array.isArray(arg) ? Promise.all(arg) : Promise.resolve(arg(tx)),
     ),
     __tx: tx,
   };
@@ -314,6 +321,25 @@ describe('OrdersService', () => {
         }
       },
     );
+
+    it('cascades the new status to every item on the order, not just the order row', async () => {
+      prisma.order.findUnique.mockResolvedValue(orderRecord('NEW'));
+      prisma.order.update.mockResolvedValue({
+        ...orderRecord('ACCEPTED'),
+        status: 'ACCEPTED',
+      });
+
+      await service.updateStatus('order-1', 'ACCEPTED', staff);
+
+      // Regression: the Guest App reads each OrderItem's own status column
+      // (see OrdersService.toOrderDto) to render kitchen progress - if this
+      // isn't cascaded, a guest keeps seeing "kitchen received your order"
+      // no matter how far staff advances the order.
+      expect(prisma.orderItem.updateMany).toHaveBeenCalledWith({
+        where: { orderId: 'order-1' },
+        data: { status: 'ACCEPTED' },
+      });
+    });
 
     it('rejects staff from a different restaurant', async () => {
       prisma.order.findUnique.mockResolvedValue(orderRecord('NEW'));

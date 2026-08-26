@@ -13,8 +13,17 @@ import {
   type PaymentDto,
   type PaymentProviderSettledEvent,
 } from './payments.types';
+import type { GuestPaymentMethod } from './dto/create-payment.dto';
 import { DomainEvents } from '../realtime/domain-events';
 import type { AuthenticatedStaff } from '../auth/auth.types';
+
+// Comfortably longer than MockPaymentProvider's settlement delay (8s) - a
+// PENDING payment older than this can only mean its settlement timer died
+// with a previous process (e.g. a backend restart mid-flight), since in
+// normal operation nothing stays PENDING this long. Without this, such an
+// orphaned row would block every future "bring the bill" for that table
+// forever, since create() below always returns whatever's PENDING.
+const STALE_PENDING_PAYMENT_MS = 30_000;
 
 interface PaymentRecord {
   id: string;
@@ -39,8 +48,18 @@ export class PaymentsService {
    * table that isn't paid yet, summed. One Payment covers potentially several
    * Order rows (see OrdersService - one submission round = one Order), not
    * just the order that happened to trigger the "bring the bill" action.
+   *
+   * `method` distinguishes the two entry points: omitted for the "bring the
+   * bill" waiter-call flow (settles asynchronously via MockPaymentProvider,
+   * like a real gateway's webhook would), or a guest-chosen self-checkout
+   * method (card/Apple Pay/Google Pay/Expirenza) from the Cart, which - as a
+   * stub, no real gateway wired up yet - settles instantly in this same call
+   * instead of waiting on the mock's simulated delay.
    */
-  async create(guestSessionId: string): Promise<PaymentDto> {
+  async create(
+    guestSessionId: string,
+    method?: GuestPaymentMethod,
+  ): Promise<PaymentDto> {
     const session = await this.prisma.guestSession.findUnique({
       where: { id: guestSessionId },
       include: { table: { include: { location: true } } },
@@ -55,7 +74,18 @@ export class PaymentsService {
       where: { tableId: session.tableId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
     });
-    if (existingPending) return this.toDto(existingPending);
+    if (existingPending) {
+      const ageMs = Date.now() - existingPending.createdAt.getTime();
+      if (ageMs < STALE_PENDING_PAYMENT_MS) {
+        return this.toDto(existingPending);
+      }
+      // Orphaned - stop it from blocking every future attempt, then fall
+      // through to start a fresh intent.
+      await this.prisma.payment.update({
+        where: { id: existingPending.id },
+        data: { status: 'FAILED' },
+      });
+    }
 
     const unpaidOrders = await this.prisma.order.findMany({
       where: { tableId: session.tableId, paidAt: null },
@@ -74,15 +104,22 @@ export class PaymentsService {
     const payment = await this.prisma.payment.create({
       data: {
         tableId: session.tableId,
-        provider: 'MOCK',
+        provider: method ?? 'MOCK',
         providerRef,
         amount,
         status: 'PENDING',
       },
     });
 
-    this.mockProvider.createPaymentIntent(providerRef);
+    if (method) {
+      const settled = await this.settle(providerRef);
+      // settle() only returns null if the payment vanished or was already
+      // settled between create() and here - impossible for a row we just
+      // created PENDING ourselves, but toDto(payment) is a safe fallback.
+      return settled ?? this.toDto(payment);
+    }
 
+    this.mockProvider.createPaymentIntent(providerRef);
     return this.toDto(payment);
   }
 
@@ -91,12 +128,17 @@ export class PaymentsService {
   async handleProviderSettled({
     providerRef,
   }: PaymentProviderSettledEvent): Promise<void> {
+    await this.settle(providerRef);
+  }
+
+  /** Shared by the async mock-provider webhook path and the instant guest-checkout path above. */
+  private async settle(providerRef: string): Promise<PaymentDto | null> {
     const payment = await this.prisma.payment.findUnique({
       where: { providerRef },
       include: { table: { include: { location: true } } },
     });
     // Idempotency guard: a real webhook can be retried by the provider.
-    if (!payment || payment.status !== 'PENDING') return;
+    if (!payment || payment.status !== 'PENDING') return null;
 
     const confirmedAt = new Date();
     const [updated] = await this.prisma.$transaction([
@@ -116,6 +158,7 @@ export class PaymentsService {
       tableId: payment.tableId,
       payment: dto,
     });
+    return dto;
   }
 
   async findLatestForGuestSession(

@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { AuthenticatedStaff } from '../auth/auth.types';
@@ -9,8 +10,8 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('guest-sessions/:id/payments')
-  create(@Param('id') guestSessionId: string) {
-    return this.paymentsService.create(guestSessionId);
+  create(@Param('id') guestSessionId: string, @Body() dto: CreatePaymentDto) {
+    return this.paymentsService.create(guestSessionId, dto.provider);
   }
 
   @Get('guest-sessions/:id/payments/latest')

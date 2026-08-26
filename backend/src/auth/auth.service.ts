@@ -28,6 +28,7 @@ export class AuthService {
       sub: staff.id,
       restaurantId: staff.restaurantId,
       email: staff.email,
+      role: staff.role,
     };
     const accessToken = await this.jwtService.signAsync(payload);
 
@@ -48,12 +49,14 @@ export class AuthService {
     name: string;
     email: string;
     restaurantId: string;
+    role: StaffDto['role'];
   }): StaffDto {
     return {
       id: staff.id,
       name: staff.name,
       email: staff.email,
       restaurantId: staff.restaurantId,
+      role: staff.role,
     };
   }
 }

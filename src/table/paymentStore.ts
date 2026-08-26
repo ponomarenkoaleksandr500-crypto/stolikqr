@@ -1,4 +1,4 @@
-import { createPayment, fetchLatestPayment, type PaymentResponse } from "@/lib/api";
+import { createPayment, fetchLatestPayment, type PaymentMethod, type PaymentResponse } from "@/lib/api";
 import * as orderStore from "./orderStore";
 
 export type PaymentState = PaymentResponse;
@@ -50,6 +50,25 @@ export async function requestPayment(sessionId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Failed to request payment", error);
+    return false;
+  }
+}
+
+/**
+ * Guest self-checkout from the Cart: unlike requestPayment() above, the
+ * response here already comes back SUCCEEDED (see backend PaymentsService's
+ * instant-settle path for a chosen method) - no need to wait for a socket
+ * push, so this also refreshes the order view itself rather than leaving
+ * that to loadLatestPayment's usual socket-triggered call.
+ */
+export async function payWithMethod(sessionId: string, method: PaymentMethod): Promise<boolean> {
+  try {
+    current = await createPayment(sessionId, method);
+    notify();
+    void orderStore.loadOrderForSession(sessionId);
+    return true;
+  } catch (error) {
+    console.error("Failed to pay", error);
     return false;
   }
 }

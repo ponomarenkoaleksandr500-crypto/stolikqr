@@ -9,6 +9,7 @@ export const DomainEvents = {
   WAITER_CALL_STATUS_UPDATED: 'waiterCall.status.updated',
   PAYMENT_STATUS_UPDATED: 'payment.status.updated',
   GUEST_SESSION_STARTED: 'guestSession.started',
+  TABLE_CLOSED: 'table.closed',
 } as const;
 
 export interface OrderEvent {
@@ -33,4 +34,10 @@ export interface GuestSessionEvent {
   restaurantId: string;
   tableId: string;
   guestSessionId: string;
+}
+
+export interface TableClosedEvent {
+  restaurantId: string;
+  tableId: string;
+  closedAt: number;
 }

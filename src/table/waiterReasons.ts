@@ -3,7 +3,7 @@ import type { TranslationKey } from "@/i18n/translations";
 export interface WaiterReason {
   key: string;
   labelKey: TranslationKey;
-  /** "Bring the bill" is the one reason that also drives the mock payment simulation. */
+  /** "Bring the bill" is the one reason that also requests payment (see paymentStore.requestPayment). */
   requestsBill?: boolean;
 }
 

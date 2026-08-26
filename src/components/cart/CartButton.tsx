@@ -17,7 +17,7 @@ export function CartButton() {
     >
       <CartIcon className="h-5 w-5" />
       {totalCount > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-semibold text-white ring-2 ring-ink-950">
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-600 px-1 text-[11px] font-semibold text-white ring-2 ring-ink-950">
           {totalCount}
         </span>
       )}

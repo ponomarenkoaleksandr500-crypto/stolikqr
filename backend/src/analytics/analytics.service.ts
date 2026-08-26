@@ -13,7 +13,34 @@ import {
 } from '../realtime/domain-events';
 import type { AuthenticatedStaff } from '../auth/auth.types';
 import type { TrackEventDto } from './dto/track-event.dto';
-import type { AnalyticsSummaryDto } from './analytics.types';
+import type {
+  AnalyticsSummaryDto,
+  LocalizedText,
+  RankedStatDto,
+} from './analytics.types';
+
+const TOP_N = 5;
+
+interface ModifierSnapshotEntry {
+  choiceId: string;
+  choiceName: LocalizedText;
+}
+
+function asLocalized(value: unknown): LocalizedText {
+  return value as LocalizedText;
+}
+
+/** Tallies occurrences by id, resolves each to a display name, sorts desc, keeps the top N. */
+function topN(
+  countById: Map<string, number>,
+  nameById: Map<string, LocalizedText>,
+): RankedStatDto[] {
+  return [...countById.entries()]
+    .map(([id, count]) => ({ name: nameById.get(id), count }))
+    .filter((row): row is RankedStatDto => row.name !== undefined)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, TOP_N);
+}
 
 // Server-known events, logged from the domain events the owning services
 // already emit rather than trusted from a client ping (see track-event.dto.ts).
@@ -135,6 +162,17 @@ export class AnalyticsService {
     const qrSessions = get(SESSION_STARTED);
     const orders = get(ORDER_CREATED);
 
+    const [topViewedDishes, topAddedToCartDishes, orderStats] =
+      await Promise.all([
+        this.rankDishesByEvent(restaurant.id, 'DISH_VIEWED', startOfToday),
+        this.rankDishesByEvent(
+          restaurant.id,
+          'DISH_ADDED_TO_CART',
+          startOfToday,
+        ),
+        this.computeOrderStats(restaurant.id, startOfToday),
+      ]);
+
     return {
       qrSessions,
       menuViews: get('MENU_OPENED'),
@@ -145,6 +183,99 @@ export class AnalyticsService {
       waiterCalls: get(WAITER_CALLED),
       conversionRate:
         qrSessions > 0 ? Math.round((orders / qrSessions) * 1000) / 10 : 0,
+      topViewedDishes,
+      topAddedToCartDishes,
+      ...orderStats,
+    };
+  }
+
+  /** Ranks dishes by how many CLIENT_TRACKABLE_EVENT_NAMES events they got today (see analytics.types.ts). */
+  private async rankDishesByEvent(
+    restaurantId: string,
+    eventName: string,
+    since: Date,
+  ): Promise<RankedStatDto[]> {
+    const grouped = await this.prisma.analyticsEvent.groupBy({
+      by: ['dishId'],
+      where: {
+        restaurantId,
+        name: eventName,
+        occurredAt: { gte: since },
+        dishId: { not: null },
+      },
+      _count: { _all: true },
+    });
+    if (grouped.length === 0) return [];
+
+    const countById = new Map(
+      grouped.map((g) => [g.dishId as string, g._count._all]),
+    );
+    const dishes = await this.prisma.dish.findMany({
+      where: { id: { in: [...countById.keys()] } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(dishes.map((d) => [d.id, asLocalized(d.name)]));
+    return topN(countById, nameById);
+  }
+
+  /**
+   * Derives average order value, dish popularity, and modifier popularity
+   * from today's real Order/OrderItem rows - not from analytics pings, since
+   * an actual placed order (with its immutable snapshot fields) is a more
+   * reliable signal than a possibly-abandoned cart-add event, and it's the
+   * only source that has modifier choices at all.
+   */
+  private async computeOrderStats(
+    restaurantId: string,
+    since: Date,
+  ): Promise<
+    Pick<
+      AnalyticsSummaryDto,
+      'averageOrderValue' | 'topOrderedDishes' | 'topModifiers'
+    >
+  > {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        table: { location: { restaurantId } },
+        createdAt: { gte: since },
+      },
+      include: { items: true },
+    });
+
+    let revenue = 0;
+    const orderedCountById = new Map<string, number>();
+    const orderedNameById = new Map<string, LocalizedText>();
+    const modifierCountById = new Map<string, number>();
+    const modifierNameById = new Map<string, LocalizedText>();
+
+    for (const order of orders) {
+      for (const item of order.items) {
+        revenue += item.lineTotal.toNumber();
+        orderedCountById.set(
+          item.dishId,
+          (orderedCountById.get(item.dishId) ?? 0) + item.quantity,
+        );
+        orderedNameById.set(item.dishId, asLocalized(item.nameSnapshot));
+
+        const modifiers =
+          (item.modifiersSnapshot as ModifierSnapshotEntry[] | null) ?? [];
+        for (const modifier of modifiers) {
+          modifierCountById.set(
+            modifier.choiceId,
+            (modifierCountById.get(modifier.choiceId) ?? 0) + 1,
+          );
+          modifierNameById.set(modifier.choiceId, modifier.choiceName);
+        }
+      }
+    }
+
+    return {
+      averageOrderValue:
+        orders.length > 0
+          ? Math.round((revenue / orders.length) * 100) / 100
+          : 0,
+      topOrderedDishes: topN(orderedCountById, orderedNameById),
+      topModifiers: topN(modifierCountById, modifierNameById),
     };
   }
 

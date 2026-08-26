@@ -1,6 +1,10 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { MenuService } from './menu.service';
-import type { MenuResponseDto } from './menu.types';
+import type { MenuResponseDto, StaffDishDto } from './menu.types';
+import { UpdateDishAvailabilityDto } from './dto/update-dish-availability.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentStaff } from '../auth/current-staff.decorator';
+import type { AuthenticatedStaff } from '../auth/auth.types';
 
 @Controller()
 export class MenuController {
@@ -17,5 +21,24 @@ export class MenuController {
   @Get('tables/:qrToken/menu')
   getByQrToken(@Param('qrToken') qrToken: string): Promise<MenuResponseDto> {
     return this.menuService.getMenuByQrToken(qrToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('restaurants/:slug/staff/dishes')
+  getStaffDishList(
+    @Param('slug') slug: string,
+    @CurrentStaff() staff: AuthenticatedStaff,
+  ): Promise<StaffDishDto[]> {
+    return this.menuService.getStaffDishList(slug, staff);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('dishes/:id/availability')
+  setDishAvailability(
+    @Param('id') id: string,
+    @Body() dto: UpdateDishAvailabilityDto,
+    @CurrentStaff() staff: AuthenticatedStaff,
+  ): Promise<StaffDishDto> {
+    return this.menuService.setDishAvailability(id, dto.isAvailable, staff);
   }
 }

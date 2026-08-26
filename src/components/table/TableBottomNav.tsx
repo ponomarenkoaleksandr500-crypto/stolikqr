@@ -39,7 +39,7 @@ export function TableBottomNav({
           href={tableHref}
           aria-current={isTableActive ? "page" : undefined}
           className={`flex min-h-[3.5rem] flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset ${
-            isTableActive ? "text-accent-600" : "text-ink-400 hover:text-ink-600"
+            isTableActive ? "text-accent-600" : "text-ink-600 hover:text-ink-600"
           }`}
         >
           <TableIcon className="h-5 w-5" />
@@ -49,7 +49,7 @@ export function TableBottomNav({
           href={menuHref}
           aria-current={!isTableActive ? "page" : undefined}
           className={`flex min-h-[3.5rem] flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset ${
-            !isTableActive ? "text-accent-600" : "text-ink-400 hover:text-ink-600"
+            !isTableActive ? "text-accent-600" : "text-ink-600 hover:text-ink-600"
           }`}
         >
           <MenuListIcon className="h-5 w-5" />
@@ -58,12 +58,12 @@ export function TableBottomNav({
         <button
           type="button"
           onClick={open}
-          className="flex min-h-[3.5rem] flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs font-semibold text-ink-400 transition-colors hover:text-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset"
+          className="flex min-h-[3.5rem] flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs font-semibold text-ink-600 transition-colors hover:text-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset"
         >
           <span className="relative">
             <CartIcon className="h-5 w-5" />
             {badgeCount > 0 && (
-              <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-600 px-1 text-[10px] font-bold text-white">
                 {badgeCount}
               </span>
             )}

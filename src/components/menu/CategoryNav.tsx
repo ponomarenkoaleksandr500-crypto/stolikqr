@@ -62,7 +62,7 @@ export function CategoryNav({
                 aria-current={isActive ? "true" : undefined}
                 className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
                   isActive
-                    ? "bg-accent-500 text-white shadow-sm shadow-accent-500/30"
+                    ? "bg-accent-600 text-white shadow-sm shadow-accent-500/30"
                     : "bg-ink-100 text-ink-600 hover:bg-ink-200 active:bg-ink-200"
                 }`}
               >

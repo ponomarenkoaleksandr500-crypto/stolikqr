@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { staffLogin } from "@/lib/api";
+import { fetchMenuByRestaurantSlug, staffLogin } from "@/lib/api";
 import { storeStaffSession } from "@/lib/staffAuth";
+
+// Demo Platform v1 is single-tenant - see stolikqr/src/app/page.tsx for the
+// same constant used on the Guest App side.
+const DEMO_RESTAURANT_SLUG = "demo-restaurant";
 
 export default function WaiterLoginPage() {
   const router = useRouter();
@@ -11,6 +15,14 @@ export default function WaiterLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [restaurantName, setRestaurantName] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetchMenuByRestaurantSlug(DEMO_RESTAURANT_SLUG).then(
+      (menu) => setRestaurantName(menu.restaurant.name.uk),
+      (err: unknown) => console.error("Failed to load restaurant name", err),
+    );
+  }, []);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -34,7 +46,7 @@ export default function WaiterLoginPage() {
         className="w-full max-w-sm rounded-2xl border border-ink-100 bg-surface p-6 shadow-sm"
       >
         <h1 className="font-display text-xl font-semibold text-ink-900">Вхід для персоналу</h1>
-        <p className="mt-1 text-sm text-ink-500">StolikQR — Waiter App</p>
+        <p className="mt-1 text-sm text-ink-500">{restaurantName ?? "…"}</p>
 
         <div className="mt-5 flex flex-col gap-3">
           <input
@@ -62,7 +74,7 @@ export default function WaiterLoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-accent-500 text-sm font-semibold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-accent-600 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isSubmitting ? "Вхід…" : "Увійти"}
         </button>

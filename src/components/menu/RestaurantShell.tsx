@@ -64,7 +64,7 @@ function RestaurantShellBody({
   }, []);
 
   return (
-    <div className="flex min-h-full flex-col bg-paper">
+    <div data-theme={restaurant.themeKey} className="flex min-h-full flex-col bg-paper">
       {!isTableHome && (
         <>
           <RestaurantHeader restaurant={restaurant} />

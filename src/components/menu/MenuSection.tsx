@@ -25,7 +25,7 @@ export function MenuSection({
             {text(category.name)}
           </h2>
           <span className="h-px flex-1 bg-ink-100" aria-hidden="true" />
-          <span className="text-sm font-medium tabular-nums text-ink-400">{dishes.length}</span>
+          <span className="text-sm font-medium tabular-nums text-ink-600">{dishes.length}</span>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {dishes.map((dish) => (

@@ -62,14 +62,14 @@ export function subscribe(listener: Listener) {
 
 /**
  * Maps the backend's 5-value OrderStatus (NEW/ACCEPTED/PREPARING/READY/SERVED,
- * now genuinely driven by a real Waiter App) onto the client's existing
- * 3-stage KitchenStatus - the OrderStatusCard/OrderLineItem stepper UI is
- * unchanged, only real status replaces what used to be a client-only mock
- * timer (pre-D5, when nothing could actually move an order forward).
+ * driven by a real Waiter App) onto the client's 4-stage KitchenStatus, 1:1
+ * except NEW/ACCEPTED both collapse to "accepted" (kitchen hasn't started
+ * cooking either way, no guest-visible difference between them).
  */
 function mapBackendStatus(status: string): KitchenStatus {
   if (status === "PREPARING") return "preparing";
-  if (status === "READY" || status === "SERVED") return "ready";
+  if (status === "READY") return "ready";
+  if (status === "SERVED") return "served";
   return "accepted"; // NEW or ACCEPTED - kitchen hasn't started yet
 }
 
@@ -97,25 +97,43 @@ function toClientOrderItem(apiItem: OrderItemResponse, batchIndex: number): Orde
     quantity: apiItem.quantity,
     status: mapBackendStatus(apiItem.status),
     batchIndex,
-    sentAt: apiItem.createdAt,
-    stageSince: apiItem.createdAt,
   };
+}
+
+/**
+ * The table's current round: everything strictly after the last time the
+ * whole tab was settled. `findForGuestSession` returns the table's *entire*
+ * history (see OrdersService.findForGuestSession), so once an earlier round
+ * has been paid off, those orders are done and must never resurface just
+ * because the table opened a new, unrelated round later - only the tail
+ * after the last paid order is "this round" (see mergeOrders below).
+ */
+function currentRoundOrders(apiOrders: OrderResponse[]): OrderResponse[] {
+  const lastPaidIndex = apiOrders.reduce(
+    (lastIndex, order, index) => (order.paidAt !== null ? index : lastIndex),
+    -1,
+  );
+  // Every order is paid (or there are none) - keep the lot so the "paid"
+  // summary below still has the full, settled round to total up.
+  if (lastPaidIndex === apiOrders.length - 1) return apiOrders;
+  return apiOrders.slice(lastPaidIndex + 1);
 }
 
 /** One backend Order = one submission round/batch (see OrdersService.findForGuestSession). */
 function mergeOrders(apiOrders: OrderResponse[], sessionId: string): Order | null {
-  const first = apiOrders[0];
+  const roundOrders = currentRoundOrders(apiOrders);
+  const first = roundOrders[0];
   if (!first) return null;
 
-  const items = apiOrders.flatMap((apiOrder, batchIndex) =>
+  const items = roundOrders.flatMap((apiOrder, batchIndex) =>
     apiOrder.items.map((apiItem) => toClientOrderItem(apiItem, batchIndex)),
   );
 
   // The merged view is only "paid" once every order in it is - a guest who
   // pays and then orders more starts a fresh, unsettled round (see
   // orderStatus.ts's isOrderSettled/getPrimaryStatus, unchanged since D1).
-  const allPaid = apiOrders.every((order) => order.paidAt !== null);
-  const paidAt = allPaid ? Math.max(...apiOrders.map((order) => order.paidAt ?? 0)) : null;
+  const allPaid = roundOrders.every((order) => order.paidAt !== null);
+  const paidAt = allPaid ? Math.max(...roundOrders.map((order) => order.paidAt ?? 0)) : null;
 
   return {
     id: first.id,

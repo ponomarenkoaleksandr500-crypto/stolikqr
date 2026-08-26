@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { TrackEventDto } from './dto/track-event.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { CurrentStaff } from '../auth/current-staff.decorator';
 import type { AuthenticatedStaff } from '../auth/auth.types';
 
@@ -25,7 +25,7 @@ export class AnalyticsController {
     await this.analyticsService.track(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Get('restaurants/:slug/staff/analytics')
   getSummary(
     @Param('slug') slug: string,

@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 __pycache__/
 *.pyc
+
+# raw source photography (D9.1) - only the resized/compressed copies in
+# public/dishes/ belong in the repo
+/photo1920

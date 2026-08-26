@@ -23,6 +23,7 @@ const staff: AuthenticatedStaff = {
   id: 'staff-1',
   restaurantId: 'restaurant-1',
   email: 'waiter@demo.stolikqr.app',
+  role: 'WAITER',
 };
 
 function orderWithItems(lineTotal: number, paidAt: Date | null = null) {
@@ -153,6 +154,76 @@ describe('PaymentsService', () => {
       expect(prisma.order.findMany).not.toHaveBeenCalled();
       expect(prisma.payment.create).not.toHaveBeenCalled();
       expect(mockProvider.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it('starts a fresh payment when the existing PENDING one is stale (orphaned by a restart)', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.payment.findFirst.mockResolvedValue(
+        paymentRecord({
+          id: 'orphaned-pending',
+          createdAt: new Date(Date.now() - 60_000), // well past MockPaymentProvider's 8s delay
+        }),
+      );
+      prisma.order.findMany.mockResolvedValue([orderWithItems(150)]);
+      prisma.payment.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            ...paymentRecord(),
+            ...data,
+            amount: { toNumber: () => data.amount as number },
+          }),
+      );
+
+      const result = await service.create('session-1');
+
+      expect(prisma.payment.update).toHaveBeenCalledWith({
+        where: { id: 'orphaned-pending' },
+        data: { status: 'FAILED' },
+      });
+      expect(result.id).not.toBe('orphaned-pending');
+      expect(result.amount).toBe(150);
+      expect(mockProvider.createPaymentIntent).toHaveBeenCalledWith(
+        expect.any(String),
+      );
+    });
+
+    it('settles instantly (no provider intent) when the guest picks a self-checkout method', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findMany.mockResolvedValue([orderWithItems(240)]);
+      let created: Record<string, unknown> = {};
+      prisma.payment.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => {
+          created = data;
+          return Promise.resolve({
+            ...paymentRecord(),
+            ...data,
+            amount: { toNumber: () => data.amount as number },
+          });
+        },
+      );
+      prisma.payment.findUnique.mockImplementation(() =>
+        Promise.resolve(paymentRecord({ ...created, status: 'PENDING' })),
+      );
+      prisma.payment.update.mockResolvedValue(
+        paymentRecord({
+          ...created,
+          status: 'SUCCEEDED',
+          confirmedAt: new Date(),
+        }),
+      );
+      prisma.order.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.create('session-1', 'CARD');
+
+      expect(created.provider).toBe('CARD');
+      expect(result.status).toBe('SUCCEEDED');
+      // The stub settles inline, unlike the "bring the bill" flow - no
+      // async provider intent, no waiting on MockPaymentProvider's timer.
+      expect(mockProvider.createPaymentIntent).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'payment.status.updated',
+        expect.objectContaining({ tableId: 'table-1' }),
+      );
     });
   });
 

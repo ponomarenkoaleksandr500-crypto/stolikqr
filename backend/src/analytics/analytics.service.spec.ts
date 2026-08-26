@@ -9,20 +9,36 @@ const staff: AuthenticatedStaff = {
   id: 'staff-1',
   restaurantId: 'restaurant-1',
   email: 'waiter@demo.stolikqr.app',
+  role: 'WAITER',
 };
+
+interface GroupByArgs {
+  by: string[];
+  where: { name?: string };
+}
+interface GroupByRow {
+  name?: string;
+  dishId?: string | null;
+  _count: { _all: number };
+}
 
 function buildMockPrisma() {
   return {
     restaurant: { findUnique: jest.fn() },
     guestSession: { findUnique: jest.fn() },
+    dish: { findMany: jest.fn() },
+    order: { findMany: jest.fn() },
     analyticsEvent: {
       create: jest.fn(),
-      groupBy: jest.fn<
-        Promise<{ name: string; _count: { _all: number } }[]>,
-        [unknown]
-      >(),
+      groupBy: jest.fn<Promise<GroupByRow[]>, [GroupByArgs]>(),
     },
   };
+}
+
+/** Empty-data defaults for the parts of getSummary this test file isn't exercising. */
+function stubEmptyRankings(prisma: ReturnType<typeof buildMockPrisma>) {
+  prisma.dish.findMany.mockResolvedValue([]);
+  prisma.order.findMany.mockResolvedValue([]);
 }
 
 describe('AnalyticsService', () => {
@@ -160,14 +176,21 @@ describe('AnalyticsService', () => {
         id: 'restaurant-1',
         slug: 'demo-restaurant',
       });
-      prisma.analyticsEvent.groupBy.mockResolvedValue([
-        { name: 'SESSION_STARTED', _count: { _all: 47 } },
-        { name: 'MENU_OPENED', _count: { _all: 40 } },
-        { name: 'DISH_VIEWED', _count: { _all: 130 } },
-        { name: 'DISH_ADDED_TO_CART', _count: { _all: 30 } },
-        { name: 'ORDER_CREATED', _count: { _all: 19 } },
-        { name: 'WAITER_CALLED', _count: { _all: 5 } },
-      ]);
+      prisma.analyticsEvent.groupBy.mockImplementation(({ by }) =>
+        Promise.resolve(
+          by[0] === 'name'
+            ? [
+                { name: 'SESSION_STARTED', _count: { _all: 47 } },
+                { name: 'MENU_OPENED', _count: { _all: 40 } },
+                { name: 'DISH_VIEWED', _count: { _all: 130 } },
+                { name: 'DISH_ADDED_TO_CART', _count: { _all: 30 } },
+                { name: 'ORDER_CREATED', _count: { _all: 19 } },
+                { name: 'WAITER_CALLED', _count: { _all: 5 } },
+              ]
+            : [],
+        ),
+      );
+      stubEmptyRankings(prisma);
 
       const result = await service.getSummary('demo-restaurant', staff);
 
@@ -182,10 +205,99 @@ describe('AnalyticsService', () => {
         slug: 'demo-restaurant',
       });
       prisma.analyticsEvent.groupBy.mockResolvedValue([]);
+      stubEmptyRankings(prisma);
 
       const result = await service.getSummary('demo-restaurant', staff);
 
       expect(result.conversionRate).toBe(0);
+      expect(result.averageOrderValue).toBe(0);
+      expect(result.topOrderedDishes).toEqual([]);
+      expect(result.topModifiers).toEqual([]);
+      expect(result.topViewedDishes).toEqual([]);
+    });
+
+    it('ranks top viewed and added-to-cart dishes by name, most first', async () => {
+      prisma.restaurant.findUnique.mockResolvedValue({
+        id: 'restaurant-1',
+        slug: 'demo-restaurant',
+      });
+      prisma.analyticsEvent.groupBy.mockImplementation(({ by, where }) => {
+        if (by[0] === 'name') return Promise.resolve([]);
+        if (where.name === 'DISH_VIEWED') {
+          return Promise.resolve([
+            { dishId: 'dish-1', _count: { _all: 3 } },
+            { dishId: 'dish-2', _count: { _all: 9 } },
+          ]);
+        }
+        if (where.name === 'DISH_ADDED_TO_CART') {
+          return Promise.resolve([{ dishId: 'dish-1', _count: { _all: 2 } }]);
+        }
+        return Promise.resolve([]);
+      });
+      prisma.dish.findMany.mockResolvedValue([
+        { id: 'dish-1', name: { uk: 'Бургер', en: 'Burger' } },
+        { id: 'dish-2', name: { uk: 'Піца', en: 'Pizza' } },
+      ]);
+      prisma.order.findMany.mockResolvedValue([]);
+
+      const result = await service.getSummary('demo-restaurant', staff);
+
+      expect(result.topViewedDishes).toEqual([
+        { name: { uk: 'Піца', en: 'Pizza' }, count: 9 },
+        { name: { uk: 'Бургер', en: 'Burger' }, count: 3 },
+      ]);
+      expect(result.topAddedToCartDishes).toEqual([
+        { name: { uk: 'Бургер', en: 'Burger' }, count: 2 },
+      ]);
+    });
+
+    it('computes average order value and popularity from real today-orders, not analytics pings', async () => {
+      prisma.restaurant.findUnique.mockResolvedValue({
+        id: 'restaurant-1',
+        slug: 'demo-restaurant',
+      });
+      prisma.analyticsEvent.groupBy.mockResolvedValue([]);
+      prisma.dish.findMany.mockResolvedValue([]);
+      prisma.order.findMany.mockResolvedValue([
+        {
+          items: [
+            {
+              dishId: 'dish-1',
+              nameSnapshot: { uk: 'Бургер', en: 'Burger' },
+              quantity: 2,
+              lineTotal: { toNumber: () => 530 },
+              modifiersSnapshot: [
+                {
+                  choiceId: 'choice-bacon',
+                  choiceName: { uk: 'Бекон', en: 'Bacon' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          items: [
+            {
+              dishId: 'dish-1',
+              nameSnapshot: { uk: 'Бургер', en: 'Burger' },
+              quantity: 1,
+              lineTotal: { toNumber: () => 265 },
+              modifiersSnapshot: null,
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getSummary('demo-restaurant', staff);
+
+      // (530 + 265) / 2 orders = 397.5
+      expect(result.averageOrderValue).toBeCloseTo(397.5, 2);
+      expect(result.topOrderedDishes).toEqual([
+        { name: { uk: 'Бургер', en: 'Burger' }, count: 3 },
+      ]);
+      expect(result.topModifiers).toEqual([
+        { name: { uk: 'Бекон', en: 'Bacon' }, count: 1 },
+      ]);
     });
 
     it('rejects an unknown restaurant slug', async () => {

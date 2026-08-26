@@ -3,7 +3,7 @@
 import type { ComponentType } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, UtensilsIcon } from "@/components/icons";
 import { PotIcon, BellIcon } from "./tableIcons";
 import type { TranslationKey } from "@/i18n/translations";
 import type { KitchenStatus, OrderItem } from "@/types/table";
@@ -12,18 +12,21 @@ const STATUS_ICON: Record<KitchenStatus, ComponentType<{ className?: string }>> 
   accepted: CheckIcon,
   preparing: PotIcon,
   ready: BellIcon,
+  served: UtensilsIcon,
 };
 
 const STATUS_LABEL_KEY: Record<KitchenStatus, TranslationKey> = {
   accepted: "table.statusAccepted",
   preparing: "table.statusPreparing",
   ready: "table.statusReady",
+  served: "table.statusServed",
 };
 
 const STATUS_TONE: Record<KitchenStatus, string> = {
   accepted: "bg-ink-100 text-ink-600",
   preparing: "bg-accent-50 text-accent-700",
   ready: "bg-sage-100 text-sage-700",
+  served: "bg-sage-100 text-sage-700",
 };
 
 /** Read-only - once sent to the kitchen an item's quantity/options can't be edited here. */

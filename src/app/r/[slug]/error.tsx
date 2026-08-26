@@ -22,7 +22,7 @@ export default function RestaurantError({
       <button
         type="button"
         onClick={reset}
-        className="flex h-11 items-center justify-center rounded-full bg-accent-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+        className="flex h-11 items-center justify-center rounded-full bg-accent-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
       >
         {t("common.errorRetry")}
       </button>

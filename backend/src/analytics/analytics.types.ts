@@ -16,6 +16,17 @@ export const CLIENT_TRACKABLE_EVENT_NAMES = [
 export type ClientTrackableEventName =
   (typeof CLIENT_TRACKABLE_EVENT_NAMES)[number];
 
+export interface LocalizedText {
+  uk: string;
+  en: string;
+}
+
+/** One row of a "top N" ranking - a dish or a modifier choice, with how many times it showed up. */
+export interface RankedStatDto {
+  name: LocalizedText;
+  count: number;
+}
+
 // Staff-facing daily funnel, mirrors the Demo Platform v1 architecture doc's
 // analytics example. Scoped to "today" (server-local midnight to now) - no
 // date-range picker in this phase, see AnalyticsService.getSummary.
@@ -29,4 +40,14 @@ export interface AnalyticsSummaryDto {
   waiterCalls: number;
   /** orders / qrSessions * 100, rounded to 1 decimal; 0 when qrSessions is 0. */
   conversionRate: number;
+  /** Total revenue of today's orders / order count; 0 when there are no orders. */
+  averageOrderValue: number;
+  /** Top 5 by DISH_VIEWED events today. */
+  topViewedDishes: RankedStatDto[];
+  /** Top 5 by DISH_ADDED_TO_CART events today. */
+  topAddedToCartDishes: RankedStatDto[];
+  /** Top 5 by quantity actually ordered today - the real popularity signal, not just views. */
+  topOrderedDishes: RankedStatDto[];
+  /** Top 5 modifier choices picked on today's orders. */
+  topModifiers: RankedStatDto[];
 }

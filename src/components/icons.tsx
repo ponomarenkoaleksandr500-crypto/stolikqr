@@ -189,3 +189,22 @@ export function UtensilsIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function CardIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 9.5h19" />
+      <path d="M6 14.5h4" strokeLinecap="round" />
+    </svg>
+  );
+}

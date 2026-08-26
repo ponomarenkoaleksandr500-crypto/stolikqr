@@ -1,8 +1,14 @@
 import type { KitchenStatus, Order, OrderItem, OrderStageStatus } from "@/types/table";
 
-const KITCHEN_STAGE_ORDER: KitchenStatus[] = ["accepted", "preparing", "ready"];
+const KITCHEN_STAGE_ORDER: KitchenStatus[] = ["accepted", "preparing", "ready", "served"];
 
-export const ORDER_STAGES: OrderStageStatus[] = ["accepted", "preparing", "ready", "paid"];
+export const ORDER_STAGES: OrderStageStatus[] = [
+  "accepted",
+  "preparing",
+  "ready",
+  "served",
+  "paid",
+];
 
 export function stageProgressIndex(stage: OrderStageStatus): number {
   return ORDER_STAGES.indexOf(stage);
@@ -32,10 +38,12 @@ export function getPrimaryStatus(order: Order): OrderStageStatus {
   return leastProgressed(primaryBatch) ?? leastProgressed(order.items) ?? "accepted";
 }
 
-/** Items from a later "add more" round that haven't caught up to ready yet. */
+/** Items from a later "add more" round that haven't caught up to ready (or served) yet. */
 export function getNewItemsCount(order: Order): number {
   if (order.paidAt) return 0;
-  return order.items.filter((item) => item.batchIndex > 0 && item.status !== "ready").length;
+  return order.items.filter(
+    (item) => item.batchIndex > 0 && kitchenStageIndex(item.status) < kitchenStageIndex("ready"),
+  ).length;
 }
 
 export function getOrderTotals(order: Order): { count: number; total: number } {

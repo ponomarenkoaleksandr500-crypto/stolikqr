@@ -134,7 +134,10 @@ export class OrdersService {
       throw new NotFoundException(`Unknown guest session: ${guestSessionId}`);
 
     const lastOrder = await this.prisma.order.findFirst({
-      where: { tableId: session.tableId },
+      where: {
+        tableId: session.tableId,
+        createdAt: { gt: session.table.lastClosedAt ?? undefined },
+      },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -244,11 +247,20 @@ export class OrdersService {
       );
     }
 
-    const updated = await this.prisma.order.update({
-      where: { id },
-      data: { status: nextStatus },
-      include: { items: true },
-    });
+    // No per-item kitchen routing in this phase (see ALLOWED_ORDER_TRANSITIONS
+    // above) - every item mirrors the order's status, so items must move in
+    // lockstep with it rather than staying frozen at their created-with NEW.
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.orderItem.updateMany({
+        where: { orderId: id },
+        data: { status: nextStatus },
+      }),
+      this.prisma.order.update({
+        where: { id },
+        data: { status: nextStatus },
+        include: { items: true },
+      }),
+    ]);
 
     const dtoResult = this.toOrderDto(updated);
     this.eventEmitter.emit(DomainEvents.ORDER_STATUS_UPDATED, {
@@ -272,6 +284,23 @@ export class OrdersService {
     return orders.map((order) => this.toOrderDto(order));
   }
 
+  /**
+   * Waiter App floor plan: which tables have money owed on them, regardless
+   * of kitchen status - broader than findActiveForRestaurant's "not yet
+   * SERVED" (a fully-served, unpaid table has nothing left to cook, but
+   * still needs a bill). See StaffService.getOverview, which combines this
+   * with hasActiveOrder to tell "still cooking/serving" apart from
+   * "everything's out, just needs payment".
+   */
+  async findUnpaidTableIds(restaurantId: string): Promise<string[]> {
+    const rows = await this.prisma.order.findMany({
+      where: { paidAt: null, table: { location: { restaurantId } } },
+      select: { tableId: true },
+      distinct: ['tableId'],
+    });
+    return rows.map((r) => r.tableId);
+  }
+
   async findById(id: string): Promise<OrderDto> {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -284,15 +313,50 @@ export class OrdersService {
   async findForGuestSession(guestSessionId: string): Promise<OrderDto[]> {
     const session = await this.prisma.guestSession.findUnique({
       where: { id: guestSessionId },
+      include: { table: true },
     });
     if (!session)
       throw new NotFoundException(`Unknown guest session: ${guestSessionId}`);
 
     // Orders belong to the TABLE (see Order.tableId) - a guest session is only
-    // provenance, so this returns the table's whole visit, not just this one
-    // device's own submissions (matches src/types/table.ts's original design note).
+    // provenance, so this returns the table's whole *current* visit, not
+    // just this one device's own submissions (matches src/types/table.ts's
+    // original design note). "Current visit" excludes anything from before
+    // the table's last staff-initiated close (see TablesService.close) -
+    // otherwise a past, already-settled visit's orders would resurface and
+    // get merged into whatever the next guests order (see orderStore.ts's
+    // mergeOrders on the client, which relied on this being scoped already).
+    return this.findCurrentOrdersForTable(
+      session.tableId,
+      session.table.lastClosedAt,
+    );
+  }
+
+  /** Waiter App table detail: same "current visit" scoping as findForGuestSession, keyed directly by table instead of via a guest session. */
+  async findCurrentForTable(
+    tableId: string,
+    staff: AuthenticatedStaff,
+  ): Promise<OrderDto[]> {
+    const table = await this.prisma.table.findUnique({
+      where: { id: tableId },
+      include: { location: true },
+    });
+    if (!table) throw new NotFoundException(`Unknown table: ${tableId}`);
+    if (table.location.restaurantId !== staff.restaurantId) {
+      throw new ForbiddenException(
+        'This table belongs to a different restaurant',
+      );
+    }
+
+    return this.findCurrentOrdersForTable(tableId, table.lastClosedAt);
+  }
+
+  private async findCurrentOrdersForTable(
+    tableId: string,
+    lastClosedAt: Date | null,
+  ): Promise<OrderDto[]> {
     const orders = await this.prisma.order.findMany({
-      where: { tableId: session.tableId },
+      where: { tableId, createdAt: { gt: lastClosedAt ?? undefined } },
       include: { items: true },
       orderBy: { createdAt: 'asc' },
     });

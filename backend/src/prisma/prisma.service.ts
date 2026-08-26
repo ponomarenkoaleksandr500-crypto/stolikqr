@@ -12,7 +12,16 @@ export class PrismaService
 {
   constructor() {
     super({
-      adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+      adapter: new PrismaPg({
+        connectionString: process.env.DATABASE_URL,
+        // The local `prisma dev` daemon closes idle connections more
+        // aggressively than pg's own 10s default, so pooled clients can go
+        // stale and fail with P1017 ("Server has closed the connection") on
+        // their next query. Recycling idle clients well before that keeps
+        // the pool from ever handing out a dead connection.
+        idleTimeoutMillis: 5_000,
+        keepAlive: true,
+      }),
     });
   }
 

@@ -51,6 +51,8 @@ export interface DishIngredient {
   id: string;
   name: LocalizedText;
   icon: IngredientIcon;
+  /** Admin-set "constant" flag - false means the guest can see it but not exclude it (see IngredientChip.tsx). */
+  removable: boolean;
 }
 
 export interface Dish {
@@ -62,6 +64,8 @@ export interface Dish {
   price: number;
   emoji: string;
   gradient: string;
+  /** Real dish photo when the restaurant has one - falls back to emoji+gradient when absent. */
+  photoUrl?: string;
   ingredients: DishIngredient[];
   tags?: Record<Locale, string[]>;
   optionGroups?: OptionGroup[];
@@ -73,6 +77,8 @@ export interface Dish {
   relatedDishIds?: string[];
   /** Shown as a fallback "popular" pick when the guest's order is still empty. */
   featured?: boolean;
+  /** Staff-controlled "stop-list" flag (see Waiter App) - false hides the dish from ordering. */
+  isAvailable: boolean;
 }
 
 export interface Category {
@@ -88,4 +94,6 @@ export interface Restaurant {
   description: LocalizedText;
   address: LocalizedText;
   workingHours: LocalizedText;
+  /** One of THEME_KEYS (see src/lib/themes.ts) - drives the data-theme attribute site-wide. */
+  themeKey: string;
 }

@@ -23,7 +23,7 @@ export function RecommendationsShelf({
 
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600">{title}</h3>
       <div className="no-scrollbar mt-2.5 flex gap-3 overflow-x-auto pb-1">
         {dishes.map((dish) => (
           <button

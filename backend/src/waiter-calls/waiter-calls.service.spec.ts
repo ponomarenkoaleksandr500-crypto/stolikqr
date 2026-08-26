@@ -22,6 +22,7 @@ const staff: AuthenticatedStaff = {
   id: 'staff-1',
   restaurantId: 'restaurant-1',
   email: 'waiter@demo.stolikqr.app',
+  role: 'WAITER',
 };
 
 function buildMockPrisma() {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice, formatPriceDelta } from "@/lib/format";
 import { useDialog } from "@/lib/useDialog";
@@ -139,20 +140,31 @@ export function DishModal({
         </div>
 
         <div
-          className={`relative flex h-48 shrink-0 items-center justify-center bg-gradient-to-br text-7xl sm:h-56 ${dish.gradient}`}
+          className={`relative flex h-48 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br text-7xl sm:h-56 ${dish.gradient}`}
         >
-          <span role="img" aria-hidden="true" className="drop-shadow-sm">
-            {dish.emoji}
-          </span>
+          {dish.photoUrl ? (
+            <Image
+              src={dish.photoUrl}
+              alt={text(dish.name)}
+              fill
+              sizes="(min-width: 640px) 32rem, 100vw"
+              className="object-cover object-[center_65%]"
+              priority
+            />
+          ) : (
+            <span role="img" aria-hidden="true" className="drop-shadow-sm">
+              {dish.emoji}
+            </span>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {dish.ingredients.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
                 {t("dish.ingredients")}
               </h3>
-              <p className="mt-1 text-xs text-ink-400">{t("dish.ingredientsHint")}</p>
+              <p className="mt-1 text-xs text-ink-600">{t("dish.ingredientsHint")}</p>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {dish.ingredients.map((ingredient) => (
                   <IngredientChip
@@ -252,7 +264,7 @@ export function DishModal({
             className={`flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-default ${
               justAdded
                 ? "bg-sage-600 text-white"
-                : "bg-accent-500 text-white hover:bg-accent-600"
+                : "bg-accent-600 text-white hover:bg-accent-700"
             }`}
           >
             {justAdded ? (

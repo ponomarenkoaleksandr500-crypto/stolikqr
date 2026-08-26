@@ -20,12 +20,31 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiUnauthorizedError(`Unauthorized: ${path}`);
   }
   if (!res.ok) {
-    throw new Error(`API request failed (${res.status}): ${path}`);
+    // Nest's error responses are JSON ({ message, error, statusCode }) - surface
+    // that message (e.g. "This table still has an unpaid order") rather than
+    // a generic status-code string, so the UI can show staff/guests *why*.
+    const body = await res.text();
+    let message = `API request failed (${res.status}): ${path}`;
+    try {
+      const parsed: unknown = body ? JSON.parse(body) : null;
+      if (parsed && typeof parsed === "object" && "message" in parsed) {
+        const parsedMessage = (parsed as { message: unknown }).message;
+        if (typeof parsedMessage === "string") message = parsedMessage;
+      }
+    } catch {
+      // Not JSON - keep the generic message.
+    }
+    throw new Error(message);
   }
   if (res.status === 204) {
     return undefined as T;
   }
-  return res.json() as Promise<T>;
+  // Nest sends an empty body (not just for 204) whenever a handler returns
+  // null/undefined - e.g. "no active waiter call" - so res.json() would
+  // throw on it. Treat an empty body as null rather than assuming every
+  // 2xx response actually has JSON to parse.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export interface MenuResponse {
@@ -215,6 +234,7 @@ export interface StaffDto {
   name: string;
   email: string;
   restaurantId: string;
+  role: "WAITER" | "ADMIN";
 }
 
 export interface StaffLoginResponse {
@@ -234,10 +254,16 @@ function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
+// Waiter App floor plan color-coding, priority order highest first - see
+// backend StaffService.getOverview for how these are derived.
+export type TableFloorStatus = "CALLED_WAITER" | "AWAITING_PAYMENT" | "ORDERED" | "OCCUPIED" | "FREE";
+
 export interface StaffTableDto {
   id: string;
   code: string;
   label: string | null;
+  zone: string | null;
+  status: TableFloorStatus;
   hasActiveOrder: boolean;
   hasActiveCall: boolean;
 }
@@ -268,6 +294,31 @@ export function updateOrderStatus(
   });
 }
 
+export interface CloseTableResponse {
+  id: string;
+  closedAt: number;
+}
+
+/**
+ * "Old guests left, table awaits new ones" - staff-only. Refused (400) while
+ * the table still has an unpaid order or an active waiter call; see backend
+ * TablesService.close.
+ */
+export function closeTable(tableId: string, token: string): Promise<CloseTableResponse> {
+  return apiFetch<CloseTableResponse>(`/tables/${encodeURIComponent(tableId)}/close`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+}
+
+/** Waiter App table detail: the table's current-visit orders (same scoping as the guest's own order view). */
+export function fetchOrdersForTable(tableId: string, token: string): Promise<OrderResponse[]> {
+  return apiFetch<OrderResponse[]>(`/tables/${encodeURIComponent(tableId)}/orders`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+}
+
 export function updateWaiterCallStatus(
   callId: string,
   status: string,
@@ -292,11 +343,27 @@ export interface PaymentResponse {
   confirmedAt: number | null;
 }
 
-/** Requests payment for the table's whole current open tab (every unpaid order, summed). */
-export function createPayment(guestSessionId: string): Promise<PaymentResponse> {
+/** Guest self-checkout methods (see backend CreatePaymentDto) - stubs for now, no real gateway wired up. */
+export type PaymentMethod = "CARD" | "APPLE_PAY" | "GOOGLE_PAY" | "EXPIRENZA";
+
+/**
+ * Requests payment for the table's whole current open tab (every unpaid
+ * order, summed). Called two ways: with no `method` from the "bring the
+ * bill" waiter-call flow (settles asynchronously, see paymentStore.ts), or
+ * with a guest-chosen `method` from the Cart (settles instantly - see
+ * backend PaymentsService.create for why).
+ */
+export function createPayment(
+  guestSessionId: string,
+  method?: PaymentMethod,
+): Promise<PaymentResponse> {
   return apiFetch<PaymentResponse>(
     `/guest-sessions/${encodeURIComponent(guestSessionId)}/payments`,
-    { method: "POST" },
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: method }),
+    },
   );
 }
 
@@ -348,6 +415,11 @@ export function trackEvent(input: TrackEventInput): void {
   });
 }
 
+export interface RankedStatResponse {
+  name: LocalizedText;
+  count: number;
+}
+
 export interface StaffAnalyticsSummaryResponse {
   qrSessions: number;
   menuViews: number;
@@ -357,6 +429,11 @@ export interface StaffAnalyticsSummaryResponse {
   orders: number;
   waiterCalls: number;
   conversionRate: number;
+  averageOrderValue: number;
+  topViewedDishes: RankedStatResponse[];
+  topAddedToCartDishes: RankedStatResponse[];
+  topOrderedDishes: RankedStatResponse[];
+  topModifiers: RankedStatResponse[];
 }
 
 export function fetchStaffAnalytics(
@@ -366,5 +443,307 @@ export function fetchStaffAnalytics(
   return apiFetch<StaffAnalyticsSummaryResponse>(
     `/restaurants/${encodeURIComponent(slug)}/staff/analytics`,
     { headers: authHeaders(token), cache: "no-store" },
+  );
+}
+
+// --- Stop-list ---------------------------------------------------------------
+
+export interface StaffDishResponse {
+  id: string;
+  name: LocalizedText;
+  categoryName: LocalizedText;
+  isAvailable: boolean;
+}
+
+export function fetchStaffDishList(slug: string, token: string): Promise<StaffDishResponse[]> {
+  return apiFetch<StaffDishResponse[]>(`/restaurants/${encodeURIComponent(slug)}/staff/dishes`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+}
+
+export function updateDishAvailability(
+  dishId: string,
+  isAvailable: boolean,
+  token: string,
+): Promise<StaffDishResponse> {
+  return apiFetch<StaffDishResponse>(`/dishes/${encodeURIComponent(dishId)}/availability`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ isAvailable }),
+  });
+}
+
+// --- Admin App: menu editor ---------------------------------------------------
+
+export interface AdminCategoryResponse {
+  id: string;
+  slug: string;
+  name: LocalizedText;
+  dishCount: number;
+}
+
+export interface AdminDishSummaryResponse {
+  id: string;
+  slug: string;
+  name: LocalizedText;
+  categoryId: string;
+  price: number;
+  emoji: string;
+  photoUrl?: string;
+  isAvailable: boolean;
+  featured: boolean;
+}
+
+export function fetchAdminCategories(slug: string, token: string): Promise<AdminCategoryResponse[]> {
+  return apiFetch<AdminCategoryResponse[]>(`/admin/categories?slug=${encodeURIComponent(slug)}`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+}
+
+export function createCategory(
+  slug: string,
+  name: LocalizedText,
+  token: string,
+): Promise<AdminCategoryResponse> {
+  return apiFetch<AdminCategoryResponse>(`/admin/categories?slug=${encodeURIComponent(slug)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function renameCategory(
+  categoryId: string,
+  name: LocalizedText,
+  token: string,
+): Promise<AdminCategoryResponse> {
+  return apiFetch<AdminCategoryResponse>(`/admin/categories/${encodeURIComponent(categoryId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteCategory(categoryId: string, token: string): Promise<void> {
+  return apiFetch<void>(`/admin/categories/${encodeURIComponent(categoryId)}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+}
+
+export function fetchAdminDishes(slug: string, token: string): Promise<AdminDishSummaryResponse[]> {
+  return apiFetch<AdminDishSummaryResponse[]>(`/admin/dishes?slug=${encodeURIComponent(slug)}`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+}
+
+/** Full editable detail - same shape as the guest-facing Dish (see @/types/menu), reused as-is. */
+export function fetchAdminDish(dishId: string, token: string): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+}
+
+export interface CreateDishInput {
+  name: LocalizedText;
+  description?: LocalizedText;
+  price: number;
+  categoryId: string;
+  emoji?: string;
+  gradient?: string;
+  featured?: boolean;
+}
+
+export function createDish(input: CreateDishInput, token: string): Promise<Dish> {
+  return apiFetch<Dish>("/admin/dishes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateDish(
+  dishId: string,
+  input: Partial<CreateDishInput>,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteDish(dishId: string, token: string): Promise<void> {
+  return apiFetch<void>(`/admin/dishes/${encodeURIComponent(dishId)}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+}
+
+export function updateTheme(themeKey: string, token: string): Promise<{ themeKey: string }> {
+  return apiFetch<{ themeKey: string }>("/admin/theme", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ themeKey }),
+  });
+}
+
+export function uploadDishPhoto(dishId: string, file: File, token: string): Promise<Dish> {
+  const formData = new FormData();
+  formData.append("photo", file);
+  // No Content-Type header here - the browser sets the multipart boundary itself.
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}/photo`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: formData,
+  });
+}
+
+export function deleteDishPhoto(dishId: string, token: string): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}/photo`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+}
+
+// --- Admin App: ingredients + modifiers (each call returns the full updated Dish) --------
+
+export interface IngredientInput {
+  name: LocalizedText;
+  icon?: string;
+  removable?: boolean;
+}
+
+export function addIngredient(
+  dishId: string,
+  input: IngredientInput,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}/ingredients`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateIngredient(
+  dishId: string,
+  ingredientId: string,
+  input: Partial<IngredientInput>,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/dishes/${encodeURIComponent(dishId)}/ingredients/${encodeURIComponent(ingredientId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function removeIngredient(
+  dishId: string,
+  ingredientId: string,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/dishes/${encodeURIComponent(dishId)}/ingredients/${encodeURIComponent(ingredientId)}`,
+    { method: "DELETE", headers: authHeaders(token) },
+  );
+}
+
+export interface ModifierGroupInput {
+  name: LocalizedText;
+  required?: boolean;
+  multiple?: boolean;
+}
+
+export function addModifierGroup(
+  dishId: string,
+  input: ModifierGroupInput,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/dishes/${encodeURIComponent(dishId)}/modifier-groups`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateModifierGroup(
+  dishId: string,
+  groupId: string,
+  input: Partial<ModifierGroupInput>,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/dishes/${encodeURIComponent(dishId)}/modifier-groups/${encodeURIComponent(groupId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function removeModifierGroup(
+  dishId: string,
+  groupId: string,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/dishes/${encodeURIComponent(dishId)}/modifier-groups/${encodeURIComponent(groupId)}`,
+    { method: "DELETE", headers: authHeaders(token) },
+  );
+}
+
+export interface ModifierChoiceInput {
+  name: LocalizedText;
+  priceDelta?: number;
+  exclusive?: boolean;
+}
+
+export function addModifierChoice(
+  groupId: string,
+  input: ModifierChoiceInput,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(`/admin/modifier-groups/${encodeURIComponent(groupId)}/choices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateModifierChoice(
+  groupId: string,
+  choiceId: string,
+  input: Partial<ModifierChoiceInput>,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/modifier-groups/${encodeURIComponent(groupId)}/choices/${encodeURIComponent(choiceId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function removeModifierChoice(
+  groupId: string,
+  choiceId: string,
+  token: string,
+): Promise<Dish> {
+  return apiFetch<Dish>(
+    `/admin/modifier-groups/${encodeURIComponent(groupId)}/choices/${encodeURIComponent(choiceId)}`,
+    { method: "DELETE", headers: authHeaders(token) },
   );
 }

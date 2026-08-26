@@ -4,12 +4,13 @@ import { useLocale } from "@/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { CartButton } from "@/components/cart/CartButton";
 import { ClockIcon, PinIcon } from "@/components/icons";
+import { getNameMonogram } from "@/lib/format";
 import type { Restaurant } from "@/types/menu";
 
 export function RestaurantHeader({ restaurant }: { restaurant: Restaurant }) {
   const { text, t } = useLocale();
   const name = text(restaurant.name);
-  const monogram = name.trim().charAt(0).toUpperCase();
+  const monogram = getNameMonogram(name);
 
   return (
     <header className="relative overflow-hidden rounded-b-[2rem] bg-ink-950 px-4 pb-7 pt-5 text-paper">
@@ -21,7 +22,7 @@ export function RestaurantHeader({ restaurant }: { restaurant: Restaurant }) {
 
       <div className="relative mx-auto flex max-w-2xl flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-500 font-display text-lg font-semibold text-white">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-600 font-display text-lg font-semibold text-white">
             {monogram}
           </div>
           <div className="flex shrink-0 items-center gap-2">

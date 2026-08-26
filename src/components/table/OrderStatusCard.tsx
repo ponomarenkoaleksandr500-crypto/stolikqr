@@ -3,7 +3,7 @@
 import type { ComponentType } from "react";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, UtensilsIcon } from "@/components/icons";
 import { PotIcon, BellIcon, ReceiptCheckIcon } from "./tableIcons";
 import {
   ORDER_STAGES,
@@ -19,6 +19,7 @@ const STAGE_ICON: Record<OrderStageStatus, ComponentType<{ className?: string }>
   accepted: CheckIcon,
   preparing: PotIcon,
   ready: BellIcon,
+  served: UtensilsIcon,
   paid: ReceiptCheckIcon,
 };
 
@@ -26,6 +27,7 @@ const STAGE_LABEL_KEY: Record<OrderStageStatus, TranslationKey> = {
   accepted: "table.statusAccepted",
   preparing: "table.statusPreparing",
   ready: "table.statusReady",
+  served: "table.statusServed",
   paid: "table.statusPaid",
 };
 
@@ -33,10 +35,11 @@ const STAGE_CAPTION_KEY: Record<OrderStageStatus, TranslationKey> = {
   accepted: "table.statusCaptionAccepted",
   preparing: "table.statusCaptionPreparing",
   ready: "table.statusCaptionReady",
+  served: "table.statusCaptionServed",
   paid: "table.statusCaptionPaid",
 };
 
-/** The 4-stage progress stepper + summary. Shared by Digital Table Home and the Order sheet. */
+/** The 5-stage progress stepper + summary. Shared by Digital Table Home and the Order sheet. */
 export function OrderStatusCard({ order }: { order: Order }) {
   const { t } = useLocale();
   const stage = getPrimaryStatus(order);
@@ -67,17 +70,23 @@ export function OrderStatusCard({ order }: { order: Order }) {
                 ? t("table.stepCurrent")
                 : t("table.stepUpcoming");
 
+          // Keying by state (not just stageItem) remounts this node exactly
+          // when it actually transitions (todo -> current -> done), which is
+          // what replays animate-attention-pop - not on every unrelated
+          // re-render. A guest watching this update live (kitchen accepts,
+          // starts cooking, waiter picks it up) sees each step announce
+          // itself instead of silently changing color.
           const node = (
             <div
-              key={stageItem}
+              key={`${stageItem}-${state}`}
               role="listitem"
               aria-current={state === "current" ? "step" : undefined}
               aria-label={`${t(STAGE_LABEL_KEY[stageItem])} — ${stateLabel}`}
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                 state === "done"
-                  ? "bg-sage-600 text-white"
+                  ? "animate-attention-pop bg-sage-600 text-white"
                   : state === "current"
-                    ? "bg-accent-500 text-white"
+                    ? "animate-attention-pop bg-accent-500 text-white"
                     : "bg-ink-100 text-ink-400"
               }`}
             >

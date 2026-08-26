@@ -9,11 +9,12 @@ import { CloseIcon, UtensilsIcon } from "@/components/icons";
 import { CartLineItem } from "./CartLineItem";
 import { useTableSession } from "@/table/TableSessionProvider";
 import { useOrder } from "@/table/useOrder";
-import { isOrderActive, isOrderEmpty, isOrderSettled } from "@/table/orderStatus";
+import { getOrderTotals, isOrderActive, isOrderEmpty, isOrderSettled } from "@/table/orderStatus";
 import { OrderLineItem } from "@/components/table/OrderLineItem";
 import { RecommendationsShelf } from "@/components/table/RecommendationsShelf";
 import { useDishSelection } from "@/components/menu/useDishSelection";
 import { DishModal } from "@/components/menu/DishModal";
+import { PaymentMethodSheet } from "./PaymentMethodSheet";
 import { getExcludedDishIds, getRecommendedDishes } from "@/lib/recommendations";
 import type { Dish } from "@/types/menu";
 
@@ -25,6 +26,8 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   const { order, submitCartItems } = useOrder();
   const { selectedDish, setSelectedDish, excludedByDish, toggleIngredient } = useDishSelection();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
 
   const hasSubmittedItems = !isOrderEmpty(order);
   const showPaidState = isOrderSettled(order, items.length);
@@ -36,9 +39,11 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   const handlePlaceOrder = async () => {
     if (!session || items.length === 0 || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitFailed(false);
     const succeeded = await submitCartItems(items, session.id);
     setIsSubmitting(false);
     if (succeeded) clearCart();
+    else setSubmitFailed(true);
   };
 
   const heading = isTableMode ? t("table.order") : t("cart.title");
@@ -102,7 +107,7 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
               <div className="flex flex-col gap-5 py-4">
                 {isOrderActive(order) && order && (
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
                       {t("table.order")}
                     </h3>
                     <ul className="divide-y divide-ink-100">
@@ -110,11 +115,18 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
                         <OrderLineItem key={item.id} item={item} />
                       ))}
                     </ul>
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentSheet(true)}
+                      className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full border border-ink-200 px-4 text-sm font-semibold text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                    >
+                      {t("payment.payButton")} · {formatPrice(getOrderTotals(order).total)}
+                    </button>
                   </div>
                 )}
                 {items.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
                       {t("table.addMore")}
                     </h3>
                     <ul className="divide-y divide-ink-100">
@@ -159,12 +171,17 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
               </div>
               <button
                 type="button"
-                onClick={handlePlaceOrder}
+                onClick={() => void handlePlaceOrder()}
                 disabled={isSubmitting}
-                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {t("table.placeOrder")}
               </button>
+              {submitFailed && (
+                <p className="text-center text-xs font-medium text-red-600">
+                  {t("table.orderPlacementFailed")}
+                </p>
+              )}
             </div>
           )
         ) : (
@@ -186,6 +203,13 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
           excludedIngredientIds={excludedByDish[selectedDish.id] ?? []}
           onToggleIngredient={(ingredientId) => toggleIngredient(selectedDish.id, ingredientId)}
           onClose={() => setSelectedDish(null)}
+        />
+      )}
+
+      {showPaymentSheet && order && (
+        <PaymentMethodSheet
+          amount={getOrderTotals(order).total}
+          onClose={() => setShowPaymentSheet(false)}
         />
       )}
     </div>

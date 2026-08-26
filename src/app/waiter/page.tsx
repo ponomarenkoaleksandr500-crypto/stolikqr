@@ -6,17 +6,19 @@ import Link from "next/link";
 import { io, type Socket } from "socket.io-client";
 import {
   ApiUnauthorizedError,
+  fetchMenuByRestaurantSlug,
   fetchStaffOverview,
   updateOrderStatus,
   updateWaiterCallStatus,
   type OrderResponse,
   type StaffOverviewResponse,
   type StaffTableDto,
+  type TableFloorStatus,
   type WaiterCallResponse,
 } from "@/lib/api";
 import { clearStaffSession, getStaffToken, getStoredStaff, type StoredStaff } from "@/lib/staffAuth";
-import { formatPrice } from "@/lib/format";
-import { BellIcon, PotIcon } from "@/components/table/tableIcons";
+import { formatPrice, formatRelativeTimeUk } from "@/lib/format";
+import { BellIcon, PotIcon, ReceiptCheckIcon } from "@/components/table/tableIcons";
 import { CheckIcon } from "@/components/icons";
 
 // Demo Platform v1 is single-tenant - see stolikqr/src/app/page.tsx for the
@@ -44,6 +46,16 @@ const ORDER_ACTION_LABEL: Record<string, string> = {
   READY: "Видати",
 };
 
+// Mirrors the guest-facing reason keys from src/table/waiterReasons.ts -
+// staff must never see the raw English key ("help", "water", ...).
+const CALL_REASON_LABEL: Record<string, string> = {
+  help: "Потрібна допомога",
+  bill: "Рахунок",
+  water: "Принести воду",
+  clean: "Прибрати зі столу",
+  other: "Виклик офіціанта",
+};
+
 const CALL_STATUS_LABEL: Record<string, string> = {
   PENDING: "Очікує",
   ACCEPTED: "Прийнято",
@@ -61,11 +73,42 @@ const CALL_ACTION_LABEL: Record<string, string> = {
   IN_PROGRESS: "Завершити",
 };
 
+// Floor plan color-coding - priority order matches backend StaffService's
+// derivation (a table's `status` is already the single winning state).
+const TABLE_STATUS_STYLE: Record<TableFloorStatus, string> = {
+  CALLED_WAITER: "border-accent-300 bg-accent-50 text-accent-700",
+  AWAITING_PAYMENT: "border-gold-300 bg-gold-100 text-gold-700",
+  ORDERED: "border-sage-600/30 bg-sage-100 text-sage-700",
+  OCCUPIED: "border-ink-300 bg-ink-100 text-ink-700",
+  FREE: "border-ink-200 bg-surface text-ink-700 hover:border-ink-300",
+};
+const TABLE_STATUS_LABEL: Record<TableFloorStatus, string> = {
+  CALLED_WAITER: "Викликає офіціанта",
+  AWAITING_PAYMENT: "Очікує оплату",
+  ORDERED: "Замовлення в процесі",
+  OCCUPIED: "Гості за столом",
+  FREE: "Вільний",
+};
+
+/** Floor plan grouping - tables already arrive sorted by code (see StaffService.getOverview). */
+function groupTablesByZone(tables: StaffTableDto[]): { name: string; tables: StaffTableDto[] }[] {
+  const groups: { name: string; tables: StaffTableDto[] }[] = [];
+  for (const table of tables) {
+    const name = table.zone ?? "Столи";
+    const last = groups[groups.length - 1];
+    if (last && last.name === name) last.tables.push(table);
+    else groups.push({ name, tables: [table] });
+  }
+  return groups;
+}
+
 export default function WaiterDashboardPage() {
   const router = useRouter();
   const [staff, setStaff] = useState<StoredStaff | null>(null);
   const [overview, setOverview] = useState<StaffOverviewResponse | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
   const socketRef = useRef<Socket | null>(null);
 
   const goToLogin = useCallback(() => {
@@ -107,6 +150,10 @@ export default function WaiterDashboardPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStaff(storedStaff);
     void refresh();
+    void fetchMenuByRestaurantSlug(DEMO_RESTAURANT_SLUG).then(
+      (menu) => setRestaurantName(menu.restaurant.name.uk),
+      (err: unknown) => console.error("Failed to load restaurant name", err),
+    );
 
     const socket = io(`${API_URL}/ws/staff`, {
       auth: { token },
@@ -119,10 +166,17 @@ export default function WaiterDashboardPage() {
     socket.on("waiterCall.created", onChange);
     socket.on("waiterCall.status.updated", onChange);
     socket.on("payment.status.updated", onChange);
+    socket.on("table.closed", onChange);
+
+    // Re-renders the "N хв тому" labels periodically - the underlying data
+    // only refetches on a real socket event, but elapsed time keeps moving
+    // regardless, so a call sitting unanswered doesn't look frozen at "щойно".
+    const tickInterval = window.setInterval(() => setTick((n) => n + 1), 30_000);
 
     return () => {
       socket.close();
       socketRef.current = null;
+      window.clearInterval(tickInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount, refresh is stable via useCallback
   }, []);
@@ -168,22 +222,24 @@ export default function WaiterDashboardPage() {
 
   return (
     <div className="min-h-screen bg-paper pb-16">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-100 bg-surface px-5 py-4">
+      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-ink-100 bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-display text-lg font-semibold text-ink-900">StolikQR — Персонал</p>
+          <p className="font-display text-lg font-semibold text-ink-900">
+            {restaurantName ?? "…"}
+          </p>
           <p className="text-xs text-ink-500">{staff.name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/waiter/analytics"
-            className="flex h-9 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
+            href="/waiter/stop-list"
+            className="flex h-11 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
           >
-            Аналітика
+            Стоп-лист
           </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="flex h-9 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
+            className="flex h-11 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
           >
             Вийти
           </button>
@@ -197,23 +253,42 @@ export default function WaiterDashboardPage() {
           </div>
         )}
 
+        {!overview && !error && <p className="text-sm text-ink-600">Завантаження…</p>}
+
         {overview && (
-          <section>
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">Столи</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {overview.tables.map((table) => (
-                <span
-                  key={table.id}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                    table.hasActiveCall
-                      ? "border-accent-300 bg-accent-50 text-accent-700"
-                      : table.hasActiveOrder
-                        ? "border-sage-600/30 bg-sage-100 text-sage-700"
-                        : "border-ink-200 bg-surface text-ink-500"
-                  }`}
-                >
-                  {table.label ?? `Стіл ${table.code}`}
-                  {table.hasActiveCall && <BellIcon className="h-3 w-3" />}
+          <section className="flex flex-col gap-5">
+            {groupTablesByZone(overview.tables).map((zone) => (
+              <div key={zone.name}>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
+                  {zone.name}
+                </h2>
+                <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-5">
+                  {zone.tables.map((table) => (
+                    <Link
+                      key={table.id}
+                      href={`/waiter/tables/${table.id}`}
+                      title={TABLE_STATUS_LABEL[table.status]}
+                      className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-2xl border text-sm font-semibold transition-colors ${TABLE_STATUS_STYLE[table.status]}`}
+                    >
+                      {table.status === "CALLED_WAITER" && (
+                        <BellIcon className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />
+                      )}
+                      {table.status === "AWAITING_PAYMENT" && (
+                        <ReceiptCheckIcon className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />
+                      )}
+                      {table.code}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1">
+              {(Object.keys(TABLE_STATUS_LABEL) as TableFloorStatus[]).map((status) => (
+                <span key={status} className="flex items-center gap-1.5 text-xs text-ink-600">
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full border ${TABLE_STATUS_STYLE[status]}`}
+                  />
+                  {TABLE_STATUS_LABEL[status]}
                 </span>
               ))}
             </div>
@@ -221,17 +296,17 @@ export default function WaiterDashboardPage() {
         )}
 
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
             Виклики {overview ? `(${overview.activeCalls.length})` : ""}
           </h2>
           <div className="mt-2 flex flex-col gap-3">
             {overview?.activeCalls.length === 0 && (
-              <p className="text-sm text-ink-400">Активних викликів немає</p>
+              <p className="text-sm text-ink-600">Активних викликів немає</p>
             )}
             {overview?.activeCalls.map((call) => (
               <div
                 key={call.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-surface p-4"
+                className="animate-card-in flex items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-surface p-4"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
@@ -240,7 +315,9 @@ export default function WaiterDashboardPage() {
                   <div>
                     <p className="font-display font-semibold text-ink-900">{tableLabel(call.tableId)}</p>
                     <p className="text-xs text-ink-500">
-                      {call.reasonKey} · {CALL_STATUS_LABEL[call.status] ?? call.status}
+                      {CALL_REASON_LABEL[call.reasonKey] ?? call.reasonKey} ·{" "}
+                      {CALL_STATUS_LABEL[call.status] ?? call.status} ·{" "}
+                      {formatRelativeTimeUk(call.calledAt)}
                     </p>
                   </div>
                 </div>
@@ -248,7 +325,7 @@ export default function WaiterDashboardPage() {
                   <button
                     type="button"
                     onClick={() => void advanceCall(call)}
-                    className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-500 px-4 text-xs font-semibold text-white transition-colors hover:bg-accent-600"
+                    className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
                   >
                     <CheckIcon className="h-3.5 w-3.5" />
                     {CALL_ACTION_LABEL[call.status]}
@@ -260,17 +337,20 @@ export default function WaiterDashboardPage() {
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-600">
             Замовлення {overview ? `(${overview.activeOrders.length})` : ""}
           </h2>
           <div className="mt-2 flex flex-col gap-3">
             {overview?.activeOrders.length === 0 && (
-              <p className="text-sm text-ink-400">Активних замовлень немає</p>
+              <p className="text-sm text-ink-600">Активних замовлень немає</p>
             )}
             {overview?.activeOrders.map((order) => {
               const total = order.items.reduce((sum, item) => sum + item.lineTotal, 0);
               return (
-                <div key={order.id} className="rounded-2xl border border-ink-100 bg-surface p-4">
+                <div
+                  key={order.id}
+                  className="animate-card-in rounded-2xl border border-ink-100 bg-surface p-4"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-500">
@@ -281,7 +361,8 @@ export default function WaiterDashboardPage() {
                           {tableLabel(order.tableId)}
                         </p>
                         <p className="text-xs text-ink-500">
-                          {ORDER_STATUS_LABEL[order.status] ?? order.status}
+                          {ORDER_STATUS_LABEL[order.status] ?? order.status} ·{" "}
+                          {formatRelativeTimeUk(order.createdAt)}
                           {order.paidAt && (
                             <span className="ml-1.5 inline-flex items-center rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-semibold text-sage-700">
                               Оплачено
@@ -310,7 +391,7 @@ export default function WaiterDashboardPage() {
                     <button
                       type="button"
                       onClick={() => void advanceOrder(order)}
-                      className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-full bg-accent-500 text-xs font-semibold text-white transition-colors hover:bg-accent-600"
+                      className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-full bg-accent-600 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
                     >
                       <CheckIcon className="h-3.5 w-3.5" />
                       {ORDER_ACTION_LABEL[order.status]}

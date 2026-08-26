@@ -10,6 +10,7 @@ import {
   DomainEvents,
   type OrderEvent,
   type PaymentEvent,
+  type TableClosedEvent,
   type WaiterCallEvent,
 } from './domain-events';
 
@@ -71,5 +72,12 @@ export class GuestGateway implements OnGatewayConnection {
     this.server
       .to(`table:${event.tableId}`)
       .emit('payment.status.updated', event.payment);
+  }
+
+  @OnEvent(DomainEvents.TABLE_CLOSED)
+  handleTableClosed(event: TableClosedEvent) {
+    this.server.to(`table:${event.tableId}`).emit('table.closed', {
+      closedAt: event.closedAt,
+    });
   }
 }

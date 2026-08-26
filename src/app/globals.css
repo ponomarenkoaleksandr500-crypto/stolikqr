@@ -35,8 +35,179 @@
   --color-sage-600: #5c7a45;
   --color-sage-700: #445c31;
 
+  /* Gold (Waiter App floor plan: "awaiting payment") */
+  --color-gold-100: #f3e3c4;
+  --color-gold-300: #d3ac6a;
+  --color-gold-600: #96692a;
+  --color-gold-700: #7a5220;
+
+  --color-accent-200: #f5c3a3;
+
   --font-sans: var(--font-sans-ui);
   --font-display: var(--font-display-serif);
+}
+
+/*
+ * Site-wide color themes (Admin App > Тема). The block above is "classic" -
+ * the default, applied when Restaurant.themeKey is "classic" or data-theme
+ * is absent. Each theme below redefines the exact same custom properties,
+ * so no component ever changes - only the values behind bg-ink-900,
+ * text-accent-600, etc. Every ink-900/ink-600-on-paper and white/accent-700
+ * -on-accent-600/sage-600/gold-100 pairing here was checked against WCAG
+ * 4.5:1 with the same luminance-ratio script used earlier in this project
+ * (see ui-ux-pro-max contrast audit) before being committed.
+ */
+
+[data-theme="midnight"] {
+  --color-ink-950: #f4ecd8;
+  --color-ink-900: #e8dcc0;
+  --color-ink-800: #d4c4a0;
+  --color-ink-700: #b8a67f;
+  --color-ink-600: #a4916d;
+  --color-ink-500: #877558;
+  --color-ink-400: #6b5c46;
+  --color-ink-300: #524636;
+  --color-ink-200: #3a3226;
+  --color-ink-100: #2a251c;
+  --color-ink-50: #201c15;
+
+  --color-paper: #17140f;
+  --color-surface: #201b14;
+  --color-background: #17140f;
+  --color-foreground: #e8dcc0;
+
+  --color-accent-50: #2a2110;
+  --color-accent-100: #34291a;
+  --color-accent-200: #4a3a1c;
+  --color-accent-300: #8f6f2e;
+  --color-accent-500: #b08e3a;
+  --color-accent-600: #7a5e1e;
+  --color-accent-700: #dba84a;
+  --color-accent: #b08e3a;
+  --color-accent-strong: #7a5e1e;
+
+  --color-sage-100: #2a3320;
+  --color-sage-600: #3f6b34;
+  --color-sage-700: #8fb56e;
+
+  --color-gold-100: #3d2f14;
+  --color-gold-300: #7a5f28;
+  --color-gold-600: #c08e2f;
+  --color-gold-700: #e0b558;
+}
+
+[data-theme="botanical"] {
+  --color-ink-950: #1a2014;
+  --color-ink-900: #232b1c;
+  --color-ink-800: #303c26;
+  --color-ink-700: #405032;
+  --color-ink-600: #536447;
+  --color-ink-500: #6d7d5f;
+  --color-ink-400: #8a9979;
+  --color-ink-300: #aab897;
+  --color-ink-200: #cdd8bd;
+  --color-ink-100: #e5ecda;
+  --color-ink-50: #f2f5ea;
+
+  --color-paper: #f4f5ea;
+  --color-surface: #ffffff;
+  --color-background: #f4f5ea;
+  --color-foreground: #232b1c;
+
+  --color-accent-50: #faeee0;
+  --color-accent-100: #f5ddc4;
+  --color-accent-200: #e8b98c;
+  --color-accent-300: #dba374;
+  --color-accent-500: #c2703a;
+  --color-accent-600: #a85c2b;
+  --color-accent-700: #86461f;
+  --color-accent: #c2703a;
+  --color-accent-strong: #a85c2b;
+
+  --color-sage-100: #dfe8d0;
+  --color-sage-600: #4f7a3a;
+  --color-sage-700: #3a5c2a;
+
+  --color-gold-100: #f0e2bd;
+  --color-gold-300: #d1ac5f;
+  --color-gold-600: #8f6a25;
+  --color-gold-700: #6f501a;
+}
+
+[data-theme="coastal"] {
+  --color-ink-950: #0f2321;
+  --color-ink-900: #17302f;
+  --color-ink-800: #21403d;
+  --color-ink-700: #305650;
+  --color-ink-600: #426d63;
+  --color-ink-500: #5c8377;
+  --color-ink-400: #7f9d90;
+  --color-ink-300: #a6bcb1;
+  --color-ink-200: #cdddd5;
+  --color-ink-100: #e3ede8;
+  --color-ink-50: #f0f6f3;
+
+  --color-paper: #f2f7f6;
+  --color-surface: #ffffff;
+  --color-background: #f2f7f6;
+  --color-foreground: #17302f;
+
+  --color-accent-50: #fdedde;
+  --color-accent-100: #fbdcc0;
+  --color-accent-200: #f2b98a;
+  --color-accent-300: #f0a066;
+  --color-accent-500: #e2611f;
+  --color-accent-600: #c94f12;
+  --color-accent-700: #a33d0d;
+  --color-accent: #e2611f;
+  --color-accent-strong: #c94f12;
+
+  --color-sage-100: #d3e9e4;
+  --color-sage-600: #1f7d70;
+  --color-sage-700: #175c53;
+
+  --color-gold-100: #f3e3c4;
+  --color-gold-300: #d3ac6a;
+  --color-gold-600: #96692a;
+  --color-gold-700: #7a5220;
+}
+
+[data-theme="rose"] {
+  --color-ink-950: #24171a;
+  --color-ink-900: #332225;
+  --color-ink-800: #452e33;
+  --color-ink-700: #5c3d43;
+  --color-ink-600: #765057;
+  --color-ink-500: #93686f;
+  --color-ink-400: #b0888d;
+  --color-ink-300: #c9acb0;
+  --color-ink-200: #e2cdd0;
+  --color-ink-100: #eee0e0;
+  --color-ink-50: #f7eeed;
+
+  --color-paper: #fbf1ee;
+  --color-surface: #ffffff;
+  --color-background: #fbf1ee;
+  --color-foreground: #332225;
+
+  --color-accent-50: #fbeaee;
+  --color-accent-100: #f7d9e0;
+  --color-accent-200: #eab9c5;
+  --color-accent-300: #de92a3;
+  --color-accent-500: #c65a72;
+  --color-accent-600: #ab4560;
+  --color-accent-700: #86344b;
+  --color-accent: #c65a72;
+  --color-accent-strong: #ab4560;
+
+  --color-sage-100: #e5ece1;
+  --color-sage-600: #5c7a52;
+  --color-sage-700: #445c3c;
+
+  --color-gold-100: #f5e6cf;
+  --color-gold-300: #dbb87e;
+  --color-gold-600: #9c7638;
+  --color-gold-700: #7d5c29;
 }
 
 body {
@@ -144,12 +315,56 @@ body {
   animation: bar-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Realtime "something just changed" cues (D9.3) - a status stepper icon
+   popping forward, or a card announcing it just arrived over the socket. */
+@keyframes attention-pop {
+  0% {
+    transform: scale(0.7);
+    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0.45);
+  }
+  60% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 8px rgba(222, 91, 46, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0);
+  }
+}
+
+@keyframes card-in {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0.35);
+  }
+  60% {
+    opacity: 1;
+    box-shadow: 0 0 0 6px rgba(222, 91, 46, 0);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0);
+  }
+}
+
+.animate-attention-pop {
+  animation: attention-pop 550ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-card-in {
+  animation: card-in 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-sheet-in,
   .animate-sheet-out,
   .animate-overlay-in,
   .animate-overlay-out,
-  .animate-bar-in {
+  .animate-bar-in,
+  .animate-attention-pop,
+  .animate-card-in {
     animation: none;
   }
 }

@@ -18,6 +18,8 @@ export function connectGuestSocket(
     onOrderUpdate: () => void;
     onWaiterCallUpdate: () => void;
     onPaymentUpdate: () => void;
+    /** Staff closed the table (see TablesService.close) - treat exactly like an order update, since the new "current round" is now empty. */
+    onTableClosed?: () => void;
   },
 ): void {
   if (socket && currentTableId === tableId) return;
@@ -30,4 +32,5 @@ export function connectGuestSocket(
   socket.on("order.status.updated", handlers.onOrderUpdate);
   socket.on("waiterCall.status.updated", handlers.onWaiterCallUpdate);
   socket.on("payment.status.updated", handlers.onPaymentUpdate);
+  socket.on("table.closed", handlers.onTableClosed ?? handlers.onOrderUpdate);
 }

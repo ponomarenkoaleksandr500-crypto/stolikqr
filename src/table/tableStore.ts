@@ -160,6 +160,14 @@ export async function startSession(
       onOrderUpdate: () => void orderStore.loadOrderForSession(remote.id),
       onWaiterCallUpdate: () => void waiterStore.loadActiveCall(remote.id),
       onPaymentUpdate: () => void paymentStore.loadLatestPayment(remote.id),
+      // Staff closed the table - refetch everything, not just the order, so
+      // a guest still on this page (e.g. after paying) sees the full reset
+      // rather than a stale waiter-call/payment badge lingering behind.
+      onTableClosed: () => {
+        void orderStore.loadOrderForSession(remote.id);
+        void waiterStore.loadActiveCall(remote.id);
+        void paymentStore.loadLatestPayment(remote.id);
+      },
     });
   } catch (error) {
     console.error("Failed to start/resume guest session", error);

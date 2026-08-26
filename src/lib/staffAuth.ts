@@ -1,11 +1,14 @@
 const TOKEN_KEY = "stolikqr.staffToken";
 const STAFF_KEY = "stolikqr.staffInfo";
 
+export type StaffRole = "WAITER" | "ADMIN";
+
 export interface StoredStaff {
   id: string;
   name: string;
   email: string;
   restaurantId: string;
+  role: StaffRole;
 }
 
 export function getStaffToken(): string | null {

@@ -1,213 +1,209 @@
 @import "tailwindcss";
 
+/*
+ * StolikQR design tokens — one visual language, two modes.
+ *
+ * Source of truth: projects/stolikqr/design-contract.md (studio).
+ * Replaces the previous five per-restaurant brand themes
+ * (classic/midnight/botanical/coastal/rose), removed by DEC-002: the
+ * light/dark choice now belongs to the GUEST, not to the restaurant.
+ *
+ * The @theme block below is LIGHT. [data-mode="dark"] and the
+ * prefers-color-scheme block redefine the exact same custom properties,
+ * so no component ever changes - only the values behind bg-paper,
+ * text-ink-900, bg-accent-600, etc.
+ *
+ * The ink ramp INVERTS in dark mode (ink-950 becomes the lightest value),
+ * which is what keeps "bg-ink-950 text-paper" reading as an inverted
+ * panel in both modes. Anything that must stay dark in both modes - a
+ * scrim over a photograph - uses --color-scrim, NOT ink-950.
+ *
+ * Every contrast pair below was verified with a luminance script before
+ * being committed: 31 pairs, 0 failures, both modes. Body text >= 4.5:1,
+ * form-control outlines and icons >= 3:1 (WCAG 1.4.3 / 1.4.11).
+ */
+
 @theme {
-  /* Warm ink neutrals */
-  --color-ink-950: #221b13;
-  --color-ink-900: #2b2318;
-  --color-ink-800: #3b3122;
-  --color-ink-700: #4f4230;
-  --color-ink-600: #665844;
-  --color-ink-500: #7f7160;
-  --color-ink-400: #9c8f7c;
-  --color-ink-300: #bcaf9a;
-  --color-ink-200: #ded1ba;
-  --color-ink-100: #ede4d3;
-  --color-ink-50: #f7f1e6;
+  /* --- Neutral ramp (light: ink-950 darkest -> ink-50 lightest) --- */
+  --color-ink-950: #121211;
+  --color-ink-900: #1a1a19;
+  --color-ink-800: #2e2e2c;
+  --color-ink-700: #45443f;
+  --color-ink-600: #5c5b56;
+  --color-ink-500: #6a6a66;
+  --color-ink-400: #8c8c87;
+  --color-ink-300: #b4b4af;
+  --color-ink-200: #dcdcd8;
+  --color-ink-100: #e9e9e6;
+  --color-ink-50: #f1f1ef;
 
-  /* Page + surfaces */
-  --color-paper: #fbf6ec;
+  /* --- Page + surfaces --- */
+  --color-paper: #f6f6f5;
   --color-surface: #ffffff;
-  --color-background: #fbf6ec;
-  --color-foreground: #2b2318;
+  --color-background: #f6f6f5;
+  --color-foreground: #1a1a19;
 
-  /* Paprika accent */
-  --color-accent-50: #fdece1;
-  --color-accent-100: #fad3bc;
-  --color-accent-300: #f0a26e;
-  --color-accent-500: #de5b2e;
-  --color-accent-600: #c24a22;
-  --color-accent-700: #9c3a1b;
-  --color-accent: #de5b2e;
-  --color-accent-strong: #c24a22;
+  /* --- Scrim: stays dark in BOTH modes (overlays, photo headers) --- */
+  --color-scrim: #0b0b0a;
+  --color-on-scrim: #ffffff;
 
-  /* Sage secondary (tags, success) */
-  --color-sage-100: #e6ecdd;
-  --color-sage-600: #5c7a45;
-  --color-sage-700: #445c31;
+  /* --- Accent: paprika. Brand colour, deliberately preserved.
+         500/600/700 are dark enough for on-accent labels in both modes;
+         300 is the light "accent text on a dark ground" value. --- */
+  --color-accent-50: #fbeae3;
+  --color-accent-100: #f9ded2;
+  --color-accent-200: #f2c3ac;
+  --color-accent-300: #e89a75;
+  --color-accent-500: #c2451a;
+  --color-accent-600: #b03f18;
+  --color-accent-700: #993716;
+  --color-accent: #c2451a;
+  --color-accent-strong: #b03f18;
+  --color-on-accent: #ffffff;
 
-  /* Gold (Waiter App floor plan: "awaiting payment") */
-  --color-gold-100: #f3e3c4;
-  --color-gold-300: #d3ac6a;
-  --color-gold-600: #96692a;
-  --color-gold-700: #7a5220;
+  /* --- Semantic states. Each has a text-weight and a soft background.
+         sage = success, gold = warning (names kept: 60+ files use them) --- */
+  --color-sage-100: #e3f2e9;
+  --color-sage-600: #1c6b43;
+  --color-sage-700: #1c6b43;
 
-  --color-accent-200: #f5c3a3;
+  --color-gold-100: #faefd9;
+  --color-gold-300: #d9b877;
+  --color-gold-600: #8a5a06;
+  --color-gold-700: #8a5a06;
 
+  --color-danger-50: #fbe9e7;
+  --color-danger-500: #b3261e;
+  --color-danger-600: #b3261e;
+  --color-danger-700: #99201a;
+
+  --color-info-50: #e4eefb;
+  --color-info-600: #1f5fa8;
+
+  /* --- Shape: four values, nothing else (design-contract.md §4) --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* --- Type: one family (Bitter removed, design-contract.md §1).
+         --font-display is kept as an alias so the ~40 existing
+         font-display usages keep working; it now resolves to the same
+         grotesk at a heavier weight rather than to a slab serif. --- */
   --font-sans: var(--font-sans-ui);
-  --font-display: var(--font-display-serif);
+  --font-display: var(--font-sans-ui);
 }
 
 /*
- * Site-wide color themes (Admin App > Тема). The block above is "classic" -
- * the default, applied when Restaurant.themeKey is "classic" or data-theme
- * is absent. Each theme below redefines the exact same custom properties,
- * so no component ever changes - only the values behind bg-ink-900,
- * text-accent-600, etc. Every ink-900/ink-600-on-paper and white/accent-700
- * -on-accent-600/sage-600/gold-100 pairing here was checked against WCAG
- * 4.5:1 with the same luminance-ratio script used earlier in this project
- * (see ui-ux-pro-max contrast audit) before being committed.
+ * DARK. The ramp inverts; surfaces darken; accent lightens where it is
+ * used as text and stays dark where it is used as a filled background.
  */
+[data-mode="dark"] {
+  --color-ink-950: #f5f5f3;
+  --color-ink-900: #f2f2f0;
+  --color-ink-800: #dcdcd8;
+  --color-ink-700: #c4c4bf;
+  --color-ink-600: #a5a5a0;
+  --color-ink-500: #96968f;
+  --color-ink-400: #6f6f6a;
+  --color-ink-300: #4a4a46;
+  --color-ink-200: #343431;
+  --color-ink-100: #242422;
+  --color-ink-50: #1f1f1d;
 
-[data-theme="midnight"] {
-  --color-ink-950: #f4ecd8;
-  --color-ink-900: #e8dcc0;
-  --color-ink-800: #d4c4a0;
-  --color-ink-700: #b8a67f;
-  --color-ink-600: #a4916d;
-  --color-ink-500: #877558;
-  --color-ink-400: #6b5c46;
-  --color-ink-300: #524636;
-  --color-ink-200: #3a3226;
-  --color-ink-100: #2a251c;
-  --color-ink-50: #201c15;
+  --color-paper: #0f0f0e;
+  --color-surface: #1a1a19;
+  --color-background: #0f0f0e;
+  --color-foreground: #f2f2f0;
 
-  --color-paper: #17140f;
-  --color-surface: #201b14;
-  --color-background: #17140f;
-  --color-foreground: #e8dcc0;
+  --color-accent-50: #2b1710;
+  --color-accent-100: #3a1e15;
+  --color-accent-200: #5a3121;
+  --color-accent-300: #f0a97f;
+  --color-accent-500: #e2683a;
+  --color-accent-600: #e2683a;
+  --color-accent-700: #f08a5d;
+  --color-accent: #e2683a;
+  --color-accent-strong: #f08a5d;
+  --color-on-accent: #1a0d06;
 
-  --color-accent-50: #2a2110;
-  --color-accent-100: #34291a;
-  --color-accent-200: #4a3a1c;
-  --color-accent-300: #8f6f2e;
-  --color-accent-500: #b08e3a;
-  --color-accent-600: #7a5e1e;
-  --color-accent-700: #dba84a;
-  --color-accent: #b08e3a;
-  --color-accent-strong: #7a5e1e;
+  --color-sage-100: #14291e;
+  --color-sage-600: #2f7d52;
+  --color-sage-700: #5cc98d;
 
-  --color-sage-100: #2a3320;
-  --color-sage-600: #3f6b34;
-  --color-sage-700: #8fb56e;
+  --color-gold-100: #2c2313;
+  --color-gold-300: #7a6330;
+  --color-gold-600: #a67c22;
+  --color-gold-700: #e0b054;
 
-  --color-gold-100: #3d2f14;
-  --color-gold-300: #7a5f28;
-  --color-gold-600: #c08e2f;
-  --color-gold-700: #e0b558;
+  --color-danger-50: #2e1917;
+  --color-danger-500: #c93f34;
+  --color-danger-600: #ef8279;
+  --color-danger-700: #f5a09a;
+
+  --color-info-50: #15243a;
+  --color-info-600: #7fb0ea;
+
+  color-scheme: dark;
 }
 
-[data-theme="botanical"] {
-  --color-ink-950: #1a2014;
-  --color-ink-900: #232b1c;
-  --color-ink-800: #303c26;
-  --color-ink-700: #405032;
-  --color-ink-600: #536447;
-  --color-ink-500: #6d7d5f;
-  --color-ink-400: #8a9979;
-  --color-ink-300: #aab897;
-  --color-ink-200: #cdd8bd;
-  --color-ink-100: #e5ecda;
-  --color-ink-50: #f2f5ea;
+/* System preference, unless the guest explicitly picked light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="light"]) {
+    --color-ink-950: #f5f5f3;
+    --color-ink-900: #f2f2f0;
+    --color-ink-800: #dcdcd8;
+    --color-ink-700: #c4c4bf;
+    --color-ink-600: #a5a5a0;
+    --color-ink-500: #96968f;
+    --color-ink-400: #6f6f6a;
+    --color-ink-300: #4a4a46;
+    --color-ink-200: #343431;
+    --color-ink-100: #242422;
+    --color-ink-50: #1f1f1d;
 
-  --color-paper: #f4f5ea;
-  --color-surface: #ffffff;
-  --color-background: #f4f5ea;
-  --color-foreground: #232b1c;
+    --color-paper: #0f0f0e;
+    --color-surface: #1a1a19;
+    --color-background: #0f0f0e;
+    --color-foreground: #f2f2f0;
 
-  --color-accent-50: #faeee0;
-  --color-accent-100: #f5ddc4;
-  --color-accent-200: #e8b98c;
-  --color-accent-300: #dba374;
-  --color-accent-500: #c2703a;
-  --color-accent-600: #a85c2b;
-  --color-accent-700: #86461f;
-  --color-accent: #c2703a;
-  --color-accent-strong: #a85c2b;
+    --color-accent-50: #2b1710;
+    --color-accent-100: #3a1e15;
+    --color-accent-200: #5a3121;
+    --color-accent-300: #f0a97f;
+    --color-accent-500: #e2683a;
+    --color-accent-600: #e2683a;
+    --color-accent-700: #f08a5d;
+    --color-accent: #e2683a;
+    --color-accent-strong: #f08a5d;
+    --color-on-accent: #1a0d06;
 
-  --color-sage-100: #dfe8d0;
-  --color-sage-600: #4f7a3a;
-  --color-sage-700: #3a5c2a;
+    --color-sage-100: #14291e;
+    --color-sage-600: #2f7d52;
+    --color-sage-700: #5cc98d;
 
-  --color-gold-100: #f0e2bd;
-  --color-gold-300: #d1ac5f;
-  --color-gold-600: #8f6a25;
-  --color-gold-700: #6f501a;
+    --color-gold-100: #2c2313;
+    --color-gold-300: #7a6330;
+    --color-gold-600: #a67c22;
+    --color-gold-700: #e0b054;
+
+    --color-danger-50: #2e1917;
+    --color-danger-500: #c93f34;
+    --color-danger-600: #ef8279;
+    --color-danger-700: #f5a09a;
+
+    --color-info-50: #15243a;
+    --color-info-600: #7fb0ea;
+
+    color-scheme: dark;
+  }
 }
 
-[data-theme="coastal"] {
-  --color-ink-950: #0f2321;
-  --color-ink-900: #17302f;
-  --color-ink-800: #21403d;
-  --color-ink-700: #305650;
-  --color-ink-600: #426d63;
-  --color-ink-500: #5c8377;
-  --color-ink-400: #7f9d90;
-  --color-ink-300: #a6bcb1;
-  --color-ink-200: #cdddd5;
-  --color-ink-100: #e3ede8;
-  --color-ink-50: #f0f6f3;
-
-  --color-paper: #f2f7f6;
-  --color-surface: #ffffff;
-  --color-background: #f2f7f6;
-  --color-foreground: #17302f;
-
-  --color-accent-50: #fdedde;
-  --color-accent-100: #fbdcc0;
-  --color-accent-200: #f2b98a;
-  --color-accent-300: #f0a066;
-  --color-accent-500: #e2611f;
-  --color-accent-600: #c94f12;
-  --color-accent-700: #a33d0d;
-  --color-accent: #e2611f;
-  --color-accent-strong: #c94f12;
-
-  --color-sage-100: #d3e9e4;
-  --color-sage-600: #1f7d70;
-  --color-sage-700: #175c53;
-
-  --color-gold-100: #f3e3c4;
-  --color-gold-300: #d3ac6a;
-  --color-gold-600: #96692a;
-  --color-gold-700: #7a5220;
+:root {
+  color-scheme: light;
 }
 
-[data-theme="rose"] {
-  --color-ink-950: #24171a;
-  --color-ink-900: #332225;
-  --color-ink-800: #452e33;
-  --color-ink-700: #5c3d43;
-  --color-ink-600: #765057;
-  --color-ink-500: #93686f;
-  --color-ink-400: #b0888d;
-  --color-ink-300: #c9acb0;
-  --color-ink-200: #e2cdd0;
-  --color-ink-100: #eee0e0;
-  --color-ink-50: #f7eeed;
-
-  --color-paper: #fbf1ee;
-  --color-surface: #ffffff;
-  --color-background: #fbf1ee;
-  --color-foreground: #332225;
-
-  --color-accent-50: #fbeaee;
-  --color-accent-100: #f7d9e0;
-  --color-accent-200: #eab9c5;
-  --color-accent-300: #de92a3;
-  --color-accent-500: #c65a72;
-  --color-accent-600: #ab4560;
-  --color-accent-700: #86344b;
-  --color-accent: #c65a72;
-  --color-accent-strong: #ab4560;
-
-  --color-sage-100: #e5ece1;
-  --color-sage-600: #5c7a52;
-  --color-sage-700: #445c3c;
-
-  --color-gold-100: #f5e6cf;
-  --color-gold-300: #dbb87e;
-  --color-gold-600: #9c7638;
-  --color-gold-700: #7d5c29;
+[data-mode="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -217,7 +213,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-accent-100);
+  background: var(--color-accent-50);
   color: var(--color-accent-700);
 }
 
@@ -230,19 +226,9 @@ body {
   display: none;
 }
 
-.bg-grain {
-  position: relative;
-}
-
-.bg-grain::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.5;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
-}
+/* Motion. MOTION_INTENSITY 3 (design-contract.md §7): sheets, overlays,
+   the cart bar, and the two realtime "this just changed" cues. Every one
+   of them carries information; nothing here is decorative. */
 
 @keyframes sheet-in {
   from {
@@ -296,7 +282,7 @@ body {
 }
 
 .animate-sheet-in {
-  animation: sheet-in 220ms ease-out;
+  animation: sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .animate-sheet-out {
@@ -304,7 +290,7 @@ body {
 }
 
 .animate-overlay-in {
-  animation: overlay-in 220ms ease-out;
+  animation: overlay-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .animate-overlay-out {
@@ -312,23 +298,21 @@ body {
 }
 
 .animate-bar-in {
-  animation: bar-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bar-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Realtime "something just changed" cues (D9.3) - a status stepper icon
-   popping forward, or a card announcing it just arrived over the socket. */
+/* Realtime cues: the state changed without the guest doing anything.
+   This is the one case where motion carries information nothing else
+   carries, so it survives the MOTION_INTENSITY 3 cut. */
 @keyframes attention-pop {
   0% {
     transform: scale(0.7);
-    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0.45);
   }
   60% {
     transform: scale(1.12);
-    box-shadow: 0 0 0 8px rgba(222, 91, 46, 0);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0);
   }
 }
 
@@ -336,16 +320,10 @@ body {
   0% {
     transform: translateY(-6px);
     opacity: 0;
-    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0.35);
-  }
-  60% {
-    opacity: 1;
-    box-shadow: 0 0 0 6px rgba(222, 91, 46, 0);
   }
   100% {
     transform: translateY(0);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(222, 91, 46, 0);
   }
 }
 

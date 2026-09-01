@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { io, type Socket } from "socket.io-client";
 import {
   ApiUnauthorizedError,
@@ -221,7 +222,7 @@ export default function WaiterDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-ink-100 bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-display text-lg font-semibold text-ink-900">
@@ -236,10 +237,11 @@ export default function WaiterDashboardPage() {
           >
             Стоп-лист
           </Link>
+          <ThemeToggle />
           <button
             type="button"
             onClick={handleLogout}
-            className="flex h-11 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
+            className="flex h-11 cursor-pointer items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
           >
             Вийти
           </button>
@@ -248,7 +250,7 @@ export default function WaiterDashboardPage() {
 
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-5">
         {error && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {error}
           </div>
         )}
@@ -268,7 +270,7 @@ export default function WaiterDashboardPage() {
                       key={table.id}
                       href={`/waiter/tables/${table.id}`}
                       title={TABLE_STATUS_LABEL[table.status]}
-                      className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-2xl border text-sm font-semibold transition-colors ${TABLE_STATUS_STYLE[table.status]}`}
+                      className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border text-sm font-semibold transition-colors ${TABLE_STATUS_STYLE[table.status]}`}
                     >
                       {table.status === "CALLED_WAITER" && (
                         <BellIcon className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />
@@ -306,7 +308,7 @@ export default function WaiterDashboardPage() {
             {overview?.activeCalls.map((call) => (
               <div
                 key={call.id}
-                className="animate-card-in flex items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-surface p-4"
+                className="animate-card-in flex items-center justify-between gap-3 rounded-lg border border-ink-100 bg-surface p-4"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
@@ -325,7 +327,7 @@ export default function WaiterDashboardPage() {
                   <button
                     type="button"
                     onClick={() => void advanceCall(call)}
-                    className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
+                    className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-600 px-4 text-xs font-semibold text-on-accent transition-colors hover:bg-accent-700"
                   >
                     <CheckIcon className="h-3.5 w-3.5" />
                     {CALL_ACTION_LABEL[call.status]}
@@ -349,7 +351,7 @@ export default function WaiterDashboardPage() {
               return (
                 <div
                   key={order.id}
-                  className="animate-card-in rounded-2xl border border-ink-100 bg-surface p-4"
+                  className="animate-card-in rounded-lg border border-ink-100 bg-surface p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -391,7 +393,7 @@ export default function WaiterDashboardPage() {
                     <button
                       type="button"
                       onClick={() => void advanceOrder(order)}
-                      className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-full bg-accent-600 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
+                      className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-full bg-accent-600 text-xs font-semibold text-on-accent transition-colors hover:bg-accent-700"
                     >
                       <CheckIcon className="h-3.5 w-3.5" />
                       {ORDER_ACTION_LABEL[order.status]}

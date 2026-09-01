@@ -32,7 +32,7 @@ export function WaiterFab() {
         type="button"
         onClick={() => setSheetOpen(true)}
         aria-label={t("waiter.title")}
-        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 items-center gap-2 rounded-full bg-ink-950 px-4 text-sm font-semibold text-paper shadow-lg shadow-ink-950/25 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 ${
+        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex h-12 items-center gap-2 rounded-full bg-ink-950 px-4 text-sm font-semibold text-paper shadow-lg shadow-ink-950/25 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 ${
           call ? "animate-attention-pop" : ""
         }`}
       >
@@ -86,7 +86,7 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className={`absolute inset-0 bg-ink-950/55 ${
+        className={`absolute inset-0 bg-scrim/55 ${
           closing ? "animate-overlay-out" : "animate-overlay-in"
         }`}
         onClick={requestClose}
@@ -98,7 +98,7 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="waiter-sheet-title"
         tabIndex={-1}
-        className={`relative flex w-full flex-col overflow-hidden rounded-t-[2rem] bg-surface px-5 pb-6 pt-3 outline-none sm:max-w-lg sm:rounded-[2rem] ${
+        className={`relative flex w-full flex-col overflow-hidden rounded-t-lg bg-surface px-5 pb-6 pt-3 outline-none sm:max-w-lg sm:rounded-lg ${
           closing ? "animate-sheet-out" : "animate-sheet-in"
         }`}
       >
@@ -148,14 +148,14 @@ function WaiterSheet({ onClose }: { onClose: () => void }) {
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSelect(option.key, option.requestsBill)}
-                  className="flex min-h-12 items-center justify-between rounded-2xl border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex min-h-12 items-center justify-between rounded-lg border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {t(option.labelKey)}
                 </button>
               ))}
             </div>
             {callFailed && (
-              <p className="mt-3 text-center text-xs font-medium text-red-600">
+              <p className="mt-3 text-center text-xs font-medium text-danger-600">
                 {t("waiter.callFailed")}
               </p>
             )}

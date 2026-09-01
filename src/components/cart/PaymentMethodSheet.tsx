@@ -57,7 +57,7 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className={`absolute inset-0 bg-ink-950/55 ${
+        className={`absolute inset-0 bg-scrim/55 ${
           closing ? "animate-overlay-out" : "animate-overlay-in"
         }`}
         onClick={requestClose}
@@ -69,7 +69,7 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
         aria-modal="true"
         aria-labelledby="payment-sheet-title"
         tabIndex={-1}
-        className={`relative flex w-full flex-col overflow-hidden rounded-t-[2rem] bg-surface px-5 pb-6 pt-3 outline-none sm:max-w-lg sm:rounded-[2rem] ${
+        className={`relative flex w-full flex-col overflow-hidden rounded-t-lg bg-surface px-5 pb-6 pt-3 outline-none sm:max-w-lg sm:rounded-lg ${
           closing ? "animate-sheet-out" : "animate-sheet-in"
         }`}
       >
@@ -115,7 +115,7 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
                   type="button"
                   disabled={pendingMethod !== null}
                   onClick={() => void handleSelect(method.key)}
-                  className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-ink-200 px-4 text-left text-sm font-medium text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {method.hasIcon && <CardIcon className="h-5 w-5 shrink-0 text-ink-600" />}
                   {t(method.labelKey)}
@@ -126,7 +126,7 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
               ))}
             </div>
             {payFailed && (
-              <p className="mt-3 text-center text-xs font-medium text-red-600">
+              <p className="mt-3 text-center text-xs font-medium text-danger-600">
                 {t("payment.failed")}
               </p>
             )}

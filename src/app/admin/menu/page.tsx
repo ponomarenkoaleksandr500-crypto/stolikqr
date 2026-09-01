@@ -153,17 +153,17 @@ export default function AdminMenuPage() {
   if (!staff) return null;
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <AdminHeader restaurantName={restaurantName} staffName={staff.name} onLogout={logout} />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-5">
         {error && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {error}
           </div>
         )}
         {deleteError && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {deleteError}
           </div>
         )}
@@ -175,7 +175,7 @@ export default function AdminMenuPage() {
           const isEditing = editingCategoryId === category.id;
           const isConfirmingDelete = confirmDeleteId === category.id;
           return (
-            <section key={category.id} className="rounded-2xl border border-ink-100 bg-surface p-4">
+            <section key={category.id} className="rounded-lg border border-ink-100 bg-surface p-4">
               <div className="flex items-center justify-between gap-2">
                 {isEditing ? (
                   <div className="flex flex-1 flex-wrap items-center gap-2">
@@ -183,19 +183,19 @@ export default function AdminMenuPage() {
                       value={editName.uk}
                       onChange={(e) => setEditName((n) => ({ ...n, uk: e.target.value }))}
                       placeholder="Назва (укр)"
-                      className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                      className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                     />
                     <input
                       value={editName.en}
                       onChange={(e) => setEditName((n) => ({ ...n, en: e.target.value }))}
                       placeholder="Name (en)"
-                      className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                      className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                     />
                     <button
                       type="button"
                       onClick={() => void saveEditing()}
                       aria-label="Зберегти"
-                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-sage-600 text-white transition-colors hover:bg-sage-700"
+                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-sage-600 text-on-accent transition-colors hover:bg-sage-700"
                     >
                       <CheckIcon className="h-4 w-4" />
                     </button>
@@ -223,7 +223,7 @@ export default function AdminMenuPage() {
                       title={isConfirmingDelete ? "Натисніть ще раз, щоб підтвердити" : "Видалити категорію"}
                       className={`flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
                         isConfirmingDelete
-                          ? "border-red-300 bg-red-50 text-red-700"
+                          ? "border-danger-500/40 bg-danger-50 text-danger-700"
                           : "border-ink-200 text-ink-500 hover:bg-ink-50"
                       }`}
                     >
@@ -242,7 +242,6 @@ export default function AdminMenuPage() {
                       className="flex items-center justify-between gap-3 py-2.5 text-sm hover:text-accent-600"
                     >
                       <span className="flex items-center gap-2">
-                        <span aria-hidden="true">{dish.emoji}</span>
                         <span className={dish.isAvailable ? "text-ink-800" : "text-ink-600 line-through"}>
                           {dish.name.uk}
                         </span>
@@ -267,26 +266,26 @@ export default function AdminMenuPage() {
           );
         })}
 
-        <section className="rounded-2xl border border-dashed border-ink-200 p-4">
+        <section className="rounded-lg border border-dashed border-ink-200 p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-600">Нова категорія</h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
               value={newCategoryUk}
               onChange={(e) => setNewCategoryUk(e.target.value)}
               placeholder="Назва (укр)"
-              className="h-11 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+              className="h-11 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
             />
             <input
               value={newCategoryEn}
               onChange={(e) => setNewCategoryEn(e.target.value)}
               placeholder="Name (en)"
-              className="h-11 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+              className="h-11 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
             />
             <button
               type="button"
               disabled={isCreatingCategory || !newCategoryUk.trim() || !newCategoryEn.trim()}
               onClick={() => void handleCreateCategory()}
-              className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-accent-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-accent-600 px-4 text-xs font-semibold text-on-accent transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <PlusIcon className="h-3.5 w-3.5" />
               Додати

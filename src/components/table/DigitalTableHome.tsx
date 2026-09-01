@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useCart } from "@/cart/CartProvider";
 import { useOrder } from "@/table/useOrder";
 import { usePayment } from "@/table/usePayment";
@@ -47,7 +48,8 @@ export function DigitalTableHome({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-5">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <ThemeToggle />
         <LanguageSwitcher />
       </div>
 
@@ -59,7 +61,7 @@ export function DigitalTableHome({
       </div>
 
       {isPaymentPending && (
-        <div className="flex items-center gap-3 rounded-2xl border border-accent-200 bg-accent-50 p-4 text-accent-700">
+        <div className="flex items-center gap-3 rounded-lg border border-accent-200 bg-accent-50 p-4 text-accent-700">
           <span className="flex h-10 w-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-accent-100">
             <ReceiptCheckIcon className="h-5 w-5" />
           </span>
@@ -71,7 +73,7 @@ export function DigitalTableHome({
       )}
 
       {reorderNotice.length > 0 && (
-        <div className="rounded-2xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-700">
+        <div className="rounded-lg border border-accent-200 bg-accent-50 p-4 text-sm text-accent-700">
           <div className="flex items-start justify-between gap-3">
             <p className="font-medium">{t("table.orderAgainSkippedIntro")}</p>
             <button
@@ -95,7 +97,7 @@ export function DigitalTableHome({
 
       {showPaidState ? (
         <div className="flex flex-col gap-3">
-          <div className="rounded-2xl bg-sage-100 p-5 text-center">
+          <div className="rounded-lg bg-sage-100 p-5 text-center">
             <p className="font-display text-lg font-semibold text-sage-700">{t("table.paidTitle")}</p>
             <p className="mt-1.5 text-sm text-sage-700/80">{t("table.paidHint")}</p>
           </div>
@@ -104,7 +106,7 @@ export function DigitalTableHome({
           )}
           <Link
             href={menuHref}
-            className="flex min-h-12 items-center justify-center rounded-2xl border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+            className="flex min-h-12 items-center justify-center rounded-lg border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
             {t("table.backToMenu")}
           </Link>
@@ -115,35 +117,35 @@ export function DigitalTableHome({
           <div className="grid grid-cols-2 gap-3">
             <Link
               href={menuHref}
-              className="flex min-h-12 items-center justify-center rounded-2xl border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+              className="flex min-h-12 items-center justify-center rounded-lg border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
             >
               {t("table.nav.menu")}
             </Link>
             <button
               type="button"
               onClick={openCart}
-              className="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+              className="flex min-h-12 cursor-pointer items-center justify-center rounded-lg bg-accent-600 px-4 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
             >
               {t("table.addMore")}
             </button>
           </div>
         </>
       ) : (
-        <div className="rounded-2xl border border-dashed border-ink-200 bg-surface p-5 text-center">
+        <div className="rounded-lg border border-dashed border-ink-200 bg-surface p-5 text-center">
           <p className="font-display text-lg font-semibold text-ink-900">{t("table.emptyTitle")}</p>
           <p className="mt-1.5 text-sm text-ink-500">{t("table.emptyHint")}</p>
           {hasPendingCart ? (
             <button
               type="button"
               onClick={openCart}
-              className="mt-4 inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+              className="mt-4 inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent-600 px-6 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
             >
               {t("table.order")}
             </button>
           ) : (
             <Link
               href={menuHref}
-              className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-accent-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+              className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-accent-600 px-6 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
             >
               {t("table.openMenu")}
             </Link>

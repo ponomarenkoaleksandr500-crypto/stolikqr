@@ -35,7 +35,7 @@ export function OrderAgainCard({
   };
 
   return (
-    <div className="rounded-2xl border border-ink-100 bg-surface p-4">
+    <div className="rounded-lg border border-ink-100 bg-surface p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
         {t("table.orderAgainTitle")}
       </p>
@@ -59,13 +59,13 @@ export function OrderAgainCard({
           type="button"
           onClick={() => void handleClick()}
           disabled={isSubmitting}
-          className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent-600 px-5 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {t("table.orderAgainButton")}
         </button>
       </div>
       {failed && (
-        <p className="mt-2 text-xs font-medium text-red-600">{t("table.orderPlacementFailed")}</p>
+        <p className="mt-2 text-xs font-medium text-danger-600">{t("table.orderPlacementFailed")}</p>
       )}
     </div>
   );

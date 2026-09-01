@@ -14,7 +14,7 @@ import {
 } from "@/lib/dishOptions";
 import { useCart } from "@/cart/CartProvider";
 import { useAnalytics } from "@/lib/analytics";
-import { CheckIcon, CloseIcon, LeafIcon } from "@/components/icons";
+import { CheckIcon, CloseIcon, LeafIcon, PlateIcon } from "@/components/icons";
 import { IngredientChip } from "./IngredientChip";
 import type { Dish, OptionGroup } from "@/types/menu";
 
@@ -87,7 +87,7 @@ export function DishModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className={`absolute inset-0 bg-ink-950/55 ${
+        className={`absolute inset-0 bg-scrim/55 ${
           closing ? "animate-overlay-out" : "animate-overlay-in"
         }`}
         onClick={requestClose}
@@ -99,7 +99,7 @@ export function DishModal({
         aria-modal="true"
         aria-labelledby="dish-modal-title"
         tabIndex={-1}
-        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-surface outline-none sm:max-w-lg sm:rounded-[2rem] ${
+        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg bg-surface outline-none sm:max-w-lg sm:rounded-lg ${
           closing ? "animate-sheet-out" : "animate-sheet-in"
         }`}
       >
@@ -139,9 +139,7 @@ export function DishModal({
           )}
         </div>
 
-        <div
-          className={`relative flex h-48 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br text-7xl sm:h-56 ${dish.gradient}`}
-        >
+        <div className="relative flex h-48 shrink-0 items-center justify-center overflow-hidden bg-ink-50 sm:h-56">
           {dish.photoUrl ? (
             <Image
               src={dish.photoUrl}
@@ -152,9 +150,7 @@ export function DishModal({
               priority
             />
           ) : (
-            <span role="img" aria-hidden="true" className="drop-shadow-sm">
-              {dish.emoji}
-            </span>
+            <PlateIcon className="h-12 w-12 text-ink-300" />
           )}
         </div>
 
@@ -201,7 +197,7 @@ export function DishModal({
                     return (
                       <label
                         key={choice.id}
-                        className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 text-sm transition-colors ${
+                        className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 text-sm transition-colors ${
                           checked
                             ? "border-accent-500 bg-accent-50"
                             : "border-ink-200 hover:border-ink-300"
@@ -219,14 +215,14 @@ export function DishModal({
                             <span
                               aria-hidden="true"
                               className={`flex h-5 w-5 items-center justify-center border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent-500 peer-focus-visible:ring-offset-2 ${
-                                group.multiple ? "rounded-md" : "rounded-full"
+                                group.multiple ? "rounded-sm" : "rounded-full"
                               } ${
                                 checked
                                   ? "border-accent-500 bg-accent-500"
                                   : "border-ink-300 bg-surface"
                               }`}
                             >
-                              {checked && <CheckIcon className="h-3 w-3 text-white" />}
+                              {checked && <CheckIcon className="h-3 w-3 text-on-accent" />}
                             </span>
                           </span>
                           <span className="text-ink-800">{text(choice.name)}</span>
@@ -241,7 +237,7 @@ export function DishModal({
                   })}
                 </div>
                 {groupHasError && (
-                  <p className="mt-1.5 text-xs font-medium text-red-600">
+                  <p className="mt-1.5 text-xs font-medium text-danger-600">
                     {t("cart.requiredMissing")}
                   </p>
                 )}
@@ -263,8 +259,8 @@ export function DishModal({
             disabled={justAdded}
             className={`flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-default ${
               justAdded
-                ? "bg-sage-600 text-white"
-                : "bg-accent-600 text-white hover:bg-accent-700"
+                ? "bg-sage-600 text-on-accent"
+                : "bg-accent-600 text-on-accent hover:bg-accent-700"
             }`}
           >
             {justAdded ? (

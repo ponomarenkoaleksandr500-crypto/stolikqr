@@ -22,22 +22,18 @@ import { DishPhotoUploader } from "@/components/admin/DishPhotoUploader";
 import { TrashIcon, CheckIcon } from "@/components/icons";
 import type { Dish } from "@/types/menu";
 
-// Every gradient here also exists on a real seed dish (backend/prisma/seed.ts)
-// so a picked swatch is guaranteed to already render correctly on DishCard/DishModal.
-const GRADIENT_PRESETS = [
-  "from-red-400 to-orange-600",
-  "from-amber-600 to-red-700",
-  "from-amber-300 to-yellow-500",
-  "from-yellow-200 to-amber-400",
-  "from-lime-300 to-green-500",
-  "from-rose-300 to-red-500",
-  "from-yellow-300 to-amber-600",
-  "from-orange-400 to-amber-700",
-  "from-sky-300 to-blue-500",
-  "from-teal-300 to-emerald-600",
-  "from-violet-300 to-purple-600",
-  "from-pink-300 to-rose-500",
-];
+// The twelve gradient presets that used to live here (violet->purple,
+// sky->blue, teal->emerald, pink->rose and friends) were removed by
+// DEC-002 §3: they were ~12 unrelated hues on a product whose palette
+// defines exactly one accent, none of them from the token system, and
+// none of them re-colouring with the theme. A dish is now represented by
+// its photograph, or by a neutral placeholder when it has none.
+//
+// `gradient` and `emoji` still exist on the API and in the DB and are
+// still sent on save, so the decision is reversible without a migration;
+// nothing in the UI reads them any more.
+const LEGACY_GRADIENT = "";
+const LEGACY_EMOJI = "";
 
 const CONFIRM_DELETE_TIMEOUT_MS = 4_000;
 
@@ -60,8 +56,8 @@ const EMPTY_FORM: FormState = {
   descriptionEn: "",
   price: "",
   categoryId: "",
-  emoji: "🍽️",
-  gradient: GRADIENT_PRESETS[0],
+  emoji: LEGACY_EMOJI,
+  gradient: LEGACY_GRADIENT,
   featured: false,
 };
 
@@ -159,7 +155,9 @@ export function DishEditorForm({
         : {}),
       price,
       categoryId: form.categoryId,
-      emoji: form.emoji.trim() || "🍽️",
+      // Sent unchanged so existing rows keep their values and the change
+      // stays reversible; neither field is rendered any more.
+      emoji: form.emoji,
       gradient: form.gradient,
       featured: form.featured,
     };
@@ -231,7 +229,7 @@ export function DishEditorForm({
   if (!staff) return null;
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <AdminHeader restaurantName={restaurantName} staffName={staff.name} onLogout={logout} />
 
       <main className="mx-auto flex max-w-2xl flex-col gap-5 px-5 py-5">
@@ -245,7 +243,7 @@ export function DishEditorForm({
               onClick={handleDeleteClick}
               className={`flex h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
                 confirmingDelete
-                  ? "border-red-300 bg-red-50 text-red-700"
+                  ? "border-danger-500/40 bg-danger-50 text-danger-700"
                   : "border-ink-200 text-ink-500 hover:bg-ink-50"
               }`}
             >
@@ -258,9 +256,9 @@ export function DishEditorForm({
         {isLoading ? (
           <p className="text-sm text-ink-600">Завантаження…</p>
         ) : (
-          <div className="flex flex-col gap-4 rounded-2xl border border-ink-100 bg-surface p-5">
+          <div className="flex flex-col gap-4 rounded-lg border border-ink-100 bg-surface p-5">
             {error && (
-              <div className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-700">
+              <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-700">
                 {error}
               </div>
             )}
@@ -270,14 +268,14 @@ export function DishEditorForm({
                 <input
                   value={form.nameUk}
                   onChange={(e) => setForm((f) => ({ ...f, nameUk: e.target.value }))}
-                  className="h-11 w-full rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="h-11 w-full rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 />
               </Field>
               <Field label="Name (en)">
                 <input
                   value={form.nameEn}
                   onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
-                  className="h-11 w-full rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="h-11 w-full rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 />
               </Field>
             </div>
@@ -288,7 +286,7 @@ export function DishEditorForm({
                   value={form.descriptionUk}
                   onChange={(e) => setForm((f) => ({ ...f, descriptionUk: e.target.value }))}
                   rows={3}
-                  className="w-full resize-none rounded-xl border border-ink-200 bg-paper px-3 py-2 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="w-full resize-none rounded-md border border-ink-400 bg-paper px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 />
               </Field>
               <Field label="Description (en)">
@@ -296,7 +294,7 @@ export function DishEditorForm({
                   value={form.descriptionEn}
                   onChange={(e) => setForm((f) => ({ ...f, descriptionEn: e.target.value }))}
                   rows={3}
-                  className="w-full resize-none rounded-xl border border-ink-200 bg-paper px-3 py-2 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="w-full resize-none rounded-md border border-ink-400 bg-paper px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 />
               </Field>
             </div>
@@ -309,14 +307,14 @@ export function DishEditorForm({
                   step="0.01"
                   value={form.price}
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                  className="h-11 w-full rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="h-11 w-full rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 />
               </Field>
               <Field label="Категорія">
                 <select
                   value={form.categoryId}
                   onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
-                  className="h-11 w-full rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+                  className="h-11 w-full rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
                 >
                   <option value="" disabled>
                     Оберіть…
@@ -329,30 +327,6 @@ export function DishEditorForm({
                 </select>
               </Field>
             </div>
-
-            <Field label="Емодзі (заглушка фото)">
-              <input
-                value={form.emoji}
-                onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))}
-                className="h-11 w-24 rounded-xl border border-ink-200 bg-paper px-3 text-center text-lg outline-none focus:border-accent-500"
-              />
-            </Field>
-
-            <Field label="Колір фону картки">
-              <div className="flex flex-wrap gap-2">
-                {GRADIENT_PRESETS.map((gradient) => (
-                  <button
-                    key={gradient}
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, gradient }))}
-                    aria-label={gradient}
-                    className={`h-10 w-10 shrink-0 cursor-pointer rounded-full bg-gradient-to-br ${gradient} transition-transform ${
-                      form.gradient === gradient ? "ring-2 ring-ink-950 ring-offset-2 ring-offset-surface" : ""
-                    }`}
-                  />
-                ))}
-              </div>
-            </Field>
 
             <div className="flex flex-wrap items-center gap-4 border-t border-ink-100 pt-4">
               <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-700">
@@ -382,7 +356,7 @@ export function DishEditorForm({
               type="button"
               disabled={isSaving}
               onClick={() => void handleSave()}
-              className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-accent-600 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-accent-600 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <CheckIcon className="h-4 w-4" />
               {isSaving ? "Збереження…" : "Зберегти"}

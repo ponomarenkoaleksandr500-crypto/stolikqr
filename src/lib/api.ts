@@ -585,14 +585,6 @@ export function deleteDish(dishId: string, token: string): Promise<void> {
   });
 }
 
-export function updateTheme(themeKey: string, token: string): Promise<{ themeKey: string }> {
-  return apiFetch<{ themeKey: string }>("/admin/theme", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ themeKey }),
-  });
-}
-
 export function uploadDishPhoto(dishId: string, file: File, token: string): Promise<Dish> {
   const formData = new FormData();
   formData.append("photo", file);

@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+
+// "Тема" removed: the five per-restaurant brand themes were retired in
+// favour of one visual language with a guest-level light/dark choice
+// (DEC-002 §2). The mode control lives in the header itself now, next to
+// logout, rather than on its own admin page.
 const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/admin/menu", label: "Меню" },
-  { href: "/admin/theme", label: "Тема" },
   { href: "/admin/analytics", label: "Аналітика" },
 ];
 
@@ -44,10 +49,11 @@ export function AdminHeader({
             </Link>
           );
         })}
+        <ThemeToggle />
         <button
           type="button"
           onClick={onLogout}
-          className="flex h-11 items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
+          className="flex h-11 cursor-pointer items-center rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-600 transition-colors hover:bg-ink-50"
         >
           Вийти
         </button>

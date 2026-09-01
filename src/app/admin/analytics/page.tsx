@@ -49,7 +49,7 @@ const RANKING_LISTS: {
 
 function RankedList({ title, rows, emptyHint }: { title: string; rows: RankedStatResponse[]; emptyHint: string }) {
   return (
-    <div className="rounded-2xl border border-ink-100 bg-surface p-4">
+    <div className="rounded-lg border border-ink-100 bg-surface p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-600">{title}</p>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-ink-600">{emptyHint}</p>
@@ -103,7 +103,7 @@ export default function AdminAnalyticsPage() {
   if (!staff) return null;
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <AdminHeader restaurantName={restaurantName} staffName={staff.name} onLogout={logout} />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-5">
@@ -119,7 +119,7 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {error}
           </div>
         )}
@@ -129,7 +129,7 @@ export default function AdminAnalyticsPage() {
         {summary && (
           <>
             <section className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-ink-100 bg-surface p-5">
+              <div className="rounded-lg border border-ink-100 bg-surface p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ink-600">
                   Конверсія в замовлення
                 </p>
@@ -140,7 +140,7 @@ export default function AdminAnalyticsPage() {
                   {summary.orders} замовлень з {summary.qrSessions} QR-сесій
                 </p>
               </div>
-              <div className="rounded-2xl border border-ink-100 bg-surface p-5">
+              <div className="rounded-lg border border-ink-100 bg-surface p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ink-600">
                   Середній чек
                 </p>
@@ -157,7 +157,7 @@ export default function AdminAnalyticsPage() {
               {METRIC_CARDS.map((metric) => (
                 <div
                   key={metric.key}
-                  className="rounded-2xl border border-ink-100 bg-surface p-4"
+                  className="rounded-lg border border-ink-100 bg-surface p-4"
                 >
                   <p className="text-xs font-medium text-ink-500">{metric.label}</p>
                   <p className="mt-1 font-display text-2xl font-bold tabular-nums text-ink-900">

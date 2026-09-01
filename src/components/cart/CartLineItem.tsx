@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
-import { MinusIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { MinusIcon, PlateIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import type { CartItem } from "@/cart/types";
 import { useCart } from "@/cart/CartProvider";
 import { useAnalytics } from "@/lib/analytics";
@@ -21,12 +22,12 @@ export function CartLineItem({ item }: { item: CartItem }) {
 
   return (
     <li className="flex gap-3 py-4">
-      <div
-        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl leading-none ${item.gradient}`}
-      >
-        <span role="img" aria-hidden="true">
-          {item.emoji}
-        </span>
+      <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50">
+        {item.photoUrl ? (
+          <Image src={item.photoUrl} alt="" fill sizes="64px" className="object-cover object-bottom" />
+        ) : (
+          <PlateIcon className="h-6 w-6 text-ink-300" />
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-1">

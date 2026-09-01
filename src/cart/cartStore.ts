@@ -125,6 +125,7 @@ export function addItem(
     dishId: dish.id,
     dishSlug: dish.slug,
     dishName: dish.name,
+    photoUrl: dish.photoUrl,
     emoji: dish.emoji,
     gradient: dish.gradient,
     unitPrice: computeDishPrice(dish, selections),

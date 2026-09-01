@@ -185,7 +185,7 @@ export default function TableDetailPage() {
   const blocked = table ? table.hasActiveOrder || table.hasActiveCall : true;
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-ink-100 bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
@@ -215,7 +215,7 @@ export default function TableDetailPage() {
           }
           className={`flex h-11 w-full shrink-0 items-center justify-center rounded-full border px-4 text-xs font-semibold transition-colors sm:w-auto ${
             confirmingClose
-              ? "border-red-300 bg-red-50 text-red-700"
+              ? "border-danger-500/40 bg-danger-50 text-danger-700"
               : "border-ink-200 bg-surface text-ink-600 hover:bg-ink-50"
           } ${blocked ? "cursor-not-allowed opacity-70" : "cursor-pointer"} ${closing ? "opacity-50" : ""}`}
         >
@@ -225,12 +225,12 @@ export default function TableDetailPage() {
 
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-5">
         {error && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {error}
           </div>
         )}
         {closeError && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {closeError}
           </div>
         )}
@@ -244,7 +244,7 @@ export default function TableDetailPage() {
         {orders?.map((order) => {
           const total = order.items.reduce((sum, item) => sum + item.lineTotal, 0);
           return (
-            <div key={order.id} className="rounded-2xl border border-ink-100 bg-surface p-4">
+            <div key={order.id} className="rounded-lg border border-ink-100 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink-50 text-ink-600">
@@ -282,7 +282,7 @@ export default function TableDetailPage() {
                 <button
                   type="button"
                   onClick={() => void advanceOrder(order)}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-accent-600 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
+                  className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-accent-600 text-xs font-semibold text-on-accent transition-colors hover:bg-accent-700"
                 >
                   <CheckIcon className="h-3.5 w-3.5" />
                   {ORDER_ACTION_LABEL[order.status]}

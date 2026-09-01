@@ -99,6 +99,7 @@ export class MenuService {
       address: unknown;
       workingHours: unknown;
       themeKey: string;
+      coverPhotoUrl: string | null;
     },
     locationId: string,
   ): Promise<MenuResponseDto> {
@@ -136,6 +137,7 @@ export class MenuService {
         address: restaurant.address as LocalizedText,
         workingHours: restaurant.workingHours as LocalizedText,
         themeKey: restaurant.themeKey,
+        coverPhotoUrl: restaurant.coverPhotoUrl ?? undefined,
       },
       categories: categories.map((c) => ({
         id: c.id,

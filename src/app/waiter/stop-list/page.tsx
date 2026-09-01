@@ -99,7 +99,7 @@ export default function StopListPage() {
   const stoppedCount = dishes?.filter((d) => !d.isAvailable).length ?? 0;
 
   return (
-    <div className="min-h-screen bg-paper pb-16">
+    <div className="min-h-dvh bg-paper pb-16">
       <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-ink-100 bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-display text-lg font-semibold text-ink-900">Стоп-лист</p>
@@ -117,7 +117,7 @@ export default function StopListPage() {
 
       <main className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
         {error && (
-          <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
+          <div className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700">
             {error}
           </div>
         )}
@@ -136,7 +136,7 @@ export default function StopListPage() {
                   type="button"
                   disabled={pendingId === dish.id}
                   onClick={() => void toggle(dish)}
-                  className={`flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+                  className={`flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-lg border px-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
                     dish.isAvailable
                       ? "border-ink-100 bg-surface"
                       : "border-accent-200 bg-accent-50"

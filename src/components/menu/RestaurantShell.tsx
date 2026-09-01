@@ -64,7 +64,10 @@ function RestaurantShellBody({
   }, []);
 
   return (
-    <div data-theme={restaurant.themeKey} className="flex min-h-full flex-col bg-paper">
+    // No data-theme here any more: the light/dark mode is the guest's
+    // choice and lives on <html> (src/theme/ThemeProvider.tsx), not the
+    // restaurant's, and it is no longer per-venue (DEC-002 §2).
+    <div className="flex min-h-full flex-col bg-paper">
       {!isTableHome && (
         <>
           <RestaurantHeader restaurant={restaurant} />

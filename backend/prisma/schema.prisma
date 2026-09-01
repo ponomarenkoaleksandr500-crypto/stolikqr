@@ -30,6 +30,9 @@ model Restaurant {
   // Site-wide color theme (see Admin App "Тема") - one of a fixed set of
   // preset keys defined in src/app/globals.css, not a free-form color value.
   themeKey     String   @default("classic")
+  // Hero/cover photo behind the guest-facing RestaurantHeader. Optional -
+  // header falls back to its existing gradient-only look when unset.
+  coverPhotoUrl String?
   createdAt    DateTime @default(now())
 
   locations       Location[]

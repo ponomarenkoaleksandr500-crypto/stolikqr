@@ -709,6 +709,7 @@ async function main() {
         uk: 'Щодня з 12:00 до 00:00',
         en: 'Daily noon – midnight',
       },
+      coverPhotoUrl: '/restaurant/cover.jpg',
     },
     create: {
       slug: 'demo-restaurant',
@@ -725,6 +726,7 @@ async function main() {
         uk: 'Щодня з 12:00 до 00:00',
         en: 'Daily noon – midnight',
       },
+      coverPhotoUrl: '/restaurant/cover.jpg',
     },
   });
 

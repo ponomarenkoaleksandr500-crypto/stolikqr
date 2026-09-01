@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { ApiUnauthorizedError, deleteDishPhoto, uploadDishPhoto } from "@/lib/api";
 import { getStaffToken } from "@/lib/staffAuth";
-import { TrashIcon } from "@/components/icons";
+import { PlateIcon, TrashIcon } from "@/components/icons";
 import type { Dish } from "@/types/menu";
 
 export function DishPhotoUploader({
@@ -50,26 +50,25 @@ export function DishPhotoUploader({
   };
 
   return (
-    <section className="rounded-2xl border border-ink-100 bg-surface p-5">
+    <section className="rounded-lg border border-ink-100 bg-surface p-5">
       <h2 className="font-display text-base font-semibold text-ink-900">Фото страви</h2>
       <p className="mt-1 text-xs text-ink-600">
-        Реальне фото замінює емодзі-заглушку на картці та в меню гостя.
+        Фото показується на картці страви та в меню гостя. Без фото страва
+        показується нейтральною заглушкою.
       </p>
 
       {error && (
-        <div className="mt-3 rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-700">
+        <div className="mt-3 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-700">
           {error}
         </div>
       )}
 
       <div className="mt-3 flex items-center gap-4">
-        <div
-          className={`relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br text-3xl ${dish.gradient || "from-ink-200 to-ink-300"}`}
-        >
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50">
           {dish.photoUrl ? (
             <Image src={dish.photoUrl} alt="" fill sizes="96px" className="object-cover object-bottom" />
           ) : (
-            <span aria-hidden="true">{dish.emoji}</span>
+            <PlateIcon className="h-7 w-7 text-ink-300" />
           )}
         </div>
 
@@ -96,7 +95,7 @@ export function DishPhotoUploader({
             <button
               type="button"
               onClick={() => void handleDelete()}
-              className="flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-50 hover:text-red-600"
+              className="flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-ink-200 px-4 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-50 hover:text-danger-600"
             >
               <TrashIcon className="h-3.5 w-3.5" />
               Видалити фото

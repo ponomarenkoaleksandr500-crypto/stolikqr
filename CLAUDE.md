@@ -20,22 +20,28 @@
 
 - Это multi-tenant SaaS-платформа для ресторанов.
 - Основные направления: guest experience, QR-меню, интерактивные карточки блюд, заказ, электронный официант, бронирование, отзывы, аналитика, waiter/kitchen/admin workflows, в дальнейшем — интеграция с платежами и POS.
-- Текущий статус: MVP интерактивного QR-меню на локальных mock-данных (`src/data`), без БД, авторизации, оплаты и внешних API (см. README.md).
-- Архитектура должна оставаться расширяемой — учитывай, что позже добавятся реальный backend, авторизация, платежи, роли (гость/официант/кухня/админ).
+- Текущий статус (см. README.md за деталями): guest-флоу, waiter app и admin app работают через реальный backend (NestJS + Prisma/PostgreSQL) с JWT-аутентификацией персонала и realtime (Socket.io) — mock-данных (`src/data`) больше нет. Бронирование, отзывы, отдельная роль kitchen и реальный платёжный провайдер (сейчас `payments` использует mock-провайдер) — ещё не реализованы.
+- Архитектура расширяемая — backend/авторизация/роли (`WAITER`/`ADMIN`) уже добавлены; следующие расширения — kitchen-роль, реальный платёжный провайдер, бронирование.
 - Не добавляй функциональность "для демонстрации" — каждое изменение должно соответствовать продуктовой цели.
 
 ## 4. Технологии и структура
 
-Стек проекта (см. `package.json`): **Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4**, ESLint (flat config).
+Стек: фронтенд — **Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4** (см. `package.json`); бэкенд (`backend/`) — **NestJS + Prisma + PostgreSQL**, JWT-аутентификация, Socket.io (см. `backend/package.json`).
 
-Ключевая структура `src/`:
-- `app/` — маршруты App Router, в т.ч. `r/[slug]` (страница ресторана), `r/[slug]/t/[tableCode]` (стол/сессия).
-- `components/` — UI по доменам: `cart/`, `menu/`, `table/`, `restaurant/`, `layout/`.
-- `data/` — mock-данные (рестораны, категории, блюда).
+Ключевая структура `src/` (frontend):
+- `app/` — маршруты App Router: `r/[slug]` (страница ресторана), `waiter/`, `admin/`.
+- `components/` — UI по доменам: `cart/`, `menu/`, `table/`, `restaurant/`, `admin/`, `layout/`.
 - `cart/`, `table/` — стейт-провайдеры и стор-логика (корзина, сессия стола, заказ, вызов официанта).
+- `lib/` — вспомогательные утилиты, включая клиент API (`lib/api.ts`) и realtime-клиент (`lib/guestSocket.ts`).
 - `i18n/` — локализация (провайдер, переводы, типы).
-- `lib/` — вспомогательные утилиты.
 - `types/` — общие TypeScript-типы.
+
+Ключевая структура `backend/src`:
+- `auth/`, `staff/` — JWT-логин персонала, роли `WAITER`/`ADMIN`.
+- `menu/`, `tables/`, `orders/`, `waiter-calls/`, `guest-sessions/` — основная доменная логика.
+- `payments/` — платежи через `mock-payment-provider.ts` (реального гейтвея пока нет).
+- `realtime/` — Socket.io gateway для гостя и персонала (`staff.gateway.ts`, `guest.gateway.ts`).
+- `analytics/`, `prisma/` — аналитика и Prisma-клиент/схема (`backend/prisma/schema.prisma`).
 
 Правила:
 - Всегда сначала смотри `package.json`, прежде чем предполагать, какие библиотеки доступны.

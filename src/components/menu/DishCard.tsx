@@ -3,30 +3,43 @@
 import Image from "next/image";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
-import { ChevronRightIcon, LeafIcon } from "@/components/icons";
+import { ChevronRightIcon, LeafIcon, PlateIcon } from "@/components/icons";
 import type { Dish } from "@/types/menu";
 
+/**
+ * One dish, one control.
+ *
+ * Fixed here against reports/design-audit.md:
+ * - VIS-1: the random per-dish gradient is gone. A dish without a photo
+ *   gets a neutral placeholder built from tokens, so it stays inside the
+ *   product's single-accent palette in both modes.
+ * - VIS-6: this used to render two sibling <button>s that both fired the
+ *   identical onSelect(dish) - two controls for one action, and a
+ *   keyboard user tabbing through every dish twice. Now one button wraps
+ *   the whole card.
+ * - VIS-7: emoji no longer stands in for product photography.
+ * - VIS-8: the tag and availability pills no longer sit on top of the
+ *   photograph; they live in the card body, where their contrast is
+ *   defined rather than dependent on whatever the photo happens to be.
+ * - VIS-4: radii come from the four-value scale (design-contract.md §4).
+ */
 export function DishCard({ dish, onSelect }: { dish: Dish; onSelect: (dish: Dish) => void }) {
   const { locale, text, t } = useLocale();
   const primaryTag = dish.tags?.[locale]?.[0];
   const unavailable = !dish.isAvailable;
 
   return (
-    <article
-      className={`flex flex-col rounded-3xl border border-ink-100 bg-surface shadow-sm transition-all ${
-        unavailable ? "" : "hover:-translate-y-0.5 hover:border-ink-200 hover:shadow-lg hover:shadow-ink-900/5"
-      }`}
-    >
+    <article className="h-full">
       <button
         type="button"
         disabled={unavailable}
         onClick={() => onSelect(dish)}
-        className={`group block w-full rounded-t-3xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 ${
-          unavailable ? "cursor-not-allowed" : "cursor-pointer"
+        className={`group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-lg border border-ink-100 bg-surface text-left shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
+          unavailable ? "cursor-not-allowed" : "hover:border-ink-200"
         }`}
       >
         <div
-          className={`relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-t-3xl bg-gradient-to-br text-6xl leading-none ${dish.gradient} ${
+          className={`relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-ink-50 ${
             unavailable ? "grayscale" : ""
           }`}
         >
@@ -39,47 +52,47 @@ export function DishCard({ dish, onSelect }: { dish: Dish; onSelect: (dish: Dish
               className="object-cover object-bottom"
             />
           ) : (
-            <span role="img" aria-hidden="true" className="drop-shadow-sm">
-              {dish.emoji}
-            </span>
-          )}
-          {unavailable ? (
-            <span className="absolute left-2.5 top-2.5 inline-flex items-center rounded-full bg-ink-950/80 px-2.5 py-1 text-[11px] font-semibold text-paper backdrop-blur-sm">
-              {t("dish.unavailable")}
-            </span>
-          ) : (
-            primaryTag && (
-              <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-surface/90 px-2.5 py-1 text-[11px] font-semibold text-sage-700 backdrop-blur-sm">
-                <LeafIcon className="h-3 w-3" />
-                {primaryTag}
-              </span>
-            )
+            // Honest empty slot. Not an emoji, not a fabricated gradient -
+            // a dish simply has no photograph yet.
+            <PlateIcon className="h-9 w-9 text-ink-300" />
           )}
         </div>
-        <div className={`flex flex-col gap-1 px-4 pt-4 ${unavailable ? "opacity-50" : ""}`}>
-          <h3 className="font-display text-base font-semibold leading-snug text-ink-900">
+
+        <div className={`flex flex-1 flex-col gap-1.5 p-3 ${unavailable ? "opacity-60" : ""}`}>
+          {(unavailable || primaryTag) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {unavailable ? (
+                <span className="inline-flex items-center rounded-sm bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-600">
+                  {t("dish.unavailable")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-sm bg-sage-100 px-2 py-0.5 text-[11px] font-semibold text-sage-700">
+                  <LeafIcon className="h-3 w-3" />
+                  {primaryTag}
+                </span>
+              )}
+            </div>
+          )}
+
+          <h3 className="font-display text-base font-semibold leading-snug tracking-tight text-ink-900">
             {text(dish.name)}
           </h3>
           <p className="line-clamp-2 text-sm leading-relaxed text-ink-500">
             {text(dish.description)}
           </p>
-        </div>
-      </button>
 
-      <button
-        type="button"
-        disabled={unavailable}
-        onClick={() => onSelect(dish)}
-        className={`group flex items-center justify-between rounded-b-3xl px-4 pb-4 pt-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 ${
-          unavailable ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-        }`}
-      >
-        <span className="font-display text-lg font-semibold tabular-nums text-ink-900">
-          {formatPrice(dish.price)}
-        </span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-50 text-ink-500 transition-colors group-hover:bg-accent-50 group-hover:text-accent-600">
-          <ChevronRightIcon className="h-4 w-4" />
-        </span>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+            <span className="font-display text-lg font-bold tabular-nums text-ink-900">
+              {formatPrice(dish.price)}
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-50 text-ink-500 transition-colors group-hover:bg-accent-50 group-hover:text-accent-700"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </span>
+          </div>
+        </div>
       </button>
     </article>
   );

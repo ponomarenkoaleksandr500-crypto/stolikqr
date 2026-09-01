@@ -94,6 +94,14 @@ export interface Restaurant {
   description: LocalizedText;
   address: LocalizedText;
   workingHours: LocalizedText;
-  /** One of THEME_KEYS (see src/lib/themes.ts) - drives the data-theme attribute site-wide. */
+  /**
+   * Still returned by the API and still stored, but no longer drives
+   * anything in the UI: the five brand themes were retired in favour of
+   * one visual language plus a guest-level light/dark mode (DEC-002 §2).
+   * Kept rather than removed so the decision stays reversible without a
+   * DB migration.
+   */
   themeKey: string;
+  /** Hero/cover photo behind RestaurantHeader - optional; the header shows a plain scrim when unset. */
+  coverPhotoUrl?: string;
 }

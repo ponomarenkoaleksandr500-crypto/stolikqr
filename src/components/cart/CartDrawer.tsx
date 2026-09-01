@@ -51,7 +51,7 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className={`absolute inset-0 bg-ink-950/55 ${
+        className={`absolute inset-0 bg-scrim/55 ${
           closing ? "animate-overlay-out" : "animate-overlay-in"
         }`}
         onClick={requestClose}
@@ -63,7 +63,7 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
         aria-modal="true"
         aria-labelledby="cart-drawer-title"
         tabIndex={-1}
-        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-surface outline-none sm:max-w-lg sm:rounded-[2rem] ${
+        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-lg bg-surface outline-none sm:max-w-lg sm:rounded-lg ${
           closing ? "animate-sheet-out" : "animate-sheet-in"
         }`}
       >
@@ -173,12 +173,12 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
                 type="button"
                 onClick={() => void handlePlaceOrder()}
                 disabled={isSubmitting}
-                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-accent-600 px-4 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {t("table.placeOrder")}
               </button>
               {submitFailed && (
-                <p className="text-center text-xs font-medium text-red-600">
+                <p className="text-center text-xs font-medium text-danger-600">
                   {t("table.orderPlacementFailed")}
                 </p>
               )}

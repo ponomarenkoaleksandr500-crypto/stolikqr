@@ -40,10 +40,10 @@ export default function WaiterLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-paper px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-ink-100 bg-surface p-6 shadow-sm"
+        className="w-full max-w-sm rounded-lg border border-ink-100 bg-surface p-6 shadow-sm"
       >
         <h1 className="font-display text-xl font-semibold text-ink-900">Вхід для персоналу</h1>
         <p className="mt-1 text-sm text-ink-500">{restaurantName ?? "…"}</p>
@@ -56,7 +56,7 @@ export default function WaiterLoginPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-11 rounded-xl border border-ink-200 bg-paper px-4 text-sm text-ink-900 outline-none focus:border-accent-500"
+            className="h-11 rounded-md border border-ink-400 bg-paper px-4 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
           />
           <input
             type="password"
@@ -65,7 +65,7 @@ export default function WaiterLoginPage() {
             placeholder="Пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-11 rounded-xl border border-ink-200 bg-paper px-4 text-sm text-ink-900 outline-none focus:border-accent-500"
+            className="h-11 rounded-md border border-ink-400 bg-paper px-4 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
           />
         </div>
 
@@ -74,7 +74,7 @@ export default function WaiterLoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-accent-600 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-accent-600 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isSubmitting ? "Вхід…" : "Увійти"}
         </button>

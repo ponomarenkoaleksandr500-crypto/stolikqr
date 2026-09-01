@@ -1,5 +1,7 @@
 "use client";
 
+import { PlateIcon } from "@/components/icons";
+import Image from "next/image";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { formatPrice } from "@/lib/format";
 import type { Dish } from "@/types/menu";
@@ -30,14 +32,14 @@ export function RecommendationsShelf({
             key={dish.id}
             type="button"
             onClick={() => onSelect(dish)}
-            className="flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl border border-ink-100 bg-surface text-left transition-colors hover:border-ink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+            className="flex w-28 shrink-0 flex-col overflow-hidden rounded-lg border border-ink-100 bg-surface text-left transition-colors hover:border-ink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
-            <div
-              className={`flex h-16 items-center justify-center bg-gradient-to-br text-2xl leading-none ${dish.gradient}`}
-            >
-              <span role="img" aria-hidden="true">
-                {dish.emoji}
-              </span>
+            <div className="relative flex h-16 items-center justify-center overflow-hidden bg-ink-50">
+              {dish.photoUrl ? (
+                <Image src={dish.photoUrl} alt="" fill sizes="112px" className="object-cover object-bottom" />
+              ) : (
+                <PlateIcon className="h-6 w-6 text-ink-300" />
+              )}
             </div>
             <div className="flex flex-col gap-0.5 px-2.5 py-2">
               <span className="line-clamp-1 text-xs font-semibold text-ink-800">

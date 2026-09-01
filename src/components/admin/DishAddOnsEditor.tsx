@@ -120,7 +120,7 @@ function IngredientsSection({
   };
 
   return (
-    <section className="rounded-2xl border border-ink-100 bg-surface p-5">
+    <section className="rounded-lg border border-ink-100 bg-surface p-5">
       <h2 className="font-display text-base font-semibold text-ink-900">Інгредієнти</h2>
       <p className="mt-1 text-xs text-ink-600">
         «Незамінний» інгредієнт гість бачить, але не може виключити із замовлення.
@@ -144,7 +144,7 @@ function IngredientsSection({
               type="button"
               onClick={() => void handleRemove(ingredient.id)}
               aria-label={`Видалити ${ingredient.name.uk}`}
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-red-600"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-danger-600"
             >
               <TrashIcon className="h-3.5 w-3.5" />
             </button>
@@ -160,18 +160,18 @@ function IngredientsSection({
           value={nameUk}
           onChange={(e) => setNameUk(e.target.value)}
           placeholder="Назва (укр)"
-          className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+          className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
         />
         <input
           value={nameEn}
           onChange={(e) => setNameEn(e.target.value)}
           placeholder="Name (en)"
-          className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+          className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
         />
         <select
           value={icon}
           onChange={(e) => setIcon(e.target.value as IngredientIcon)}
-          className="h-10 rounded-xl border border-ink-200 bg-paper px-2 text-sm text-ink-900 outline-none focus:border-accent-500"
+          className="h-10 rounded-md border border-ink-400 bg-paper px-2 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
         >
           {ICON_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
@@ -293,7 +293,7 @@ function ModifiersSection({
   };
 
   return (
-    <section className="rounded-2xl border border-ink-100 bg-surface p-5">
+    <section className="rounded-lg border border-ink-100 bg-surface p-5">
       <h2 className="font-display text-base font-semibold text-ink-900">Модифікатори</h2>
       <p className="mt-1 text-xs text-ink-600">
         Групи платних/обов&apos;язкових опцій, наприклад «Гострота» або «Соус».
@@ -301,14 +301,14 @@ function ModifiersSection({
 
       <div className="mt-3 flex flex-col gap-4">
         {(dish.optionGroups ?? []).map((group) => (
-          <div key={group.id} className="rounded-xl border border-ink-100 p-3">
+          <div key={group.id} className="rounded-md border border-ink-100 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold text-ink-900">{group.name.uk}</span>
               <button
                 type="button"
                 onClick={() => void handleRemoveGroup(group.id)}
                 aria-label={`Видалити групу ${group.name.uk}`}
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-red-600"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-danger-600"
               >
                 <TrashIcon className="h-3.5 w-3.5" />
               </button>
@@ -346,7 +346,7 @@ function ModifiersSection({
                     type="button"
                     onClick={() => void handleRemoveChoice(group.id, choice.id)}
                     aria-label={`Видалити ${choice.name.uk}`}
-                    className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-red-600"
+                    className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-400 transition-colors hover:bg-ink-50 hover:text-danger-600"
                   >
                     <TrashIcon className="h-3 w-3" />
                   </button>
@@ -371,13 +371,13 @@ function ModifiersSection({
             value={groupNameUk}
             onChange={(e) => setGroupNameUk(e.target.value)}
             placeholder="Назва групи (укр)"
-            className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+            className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
           />
           <input
             value={groupNameEn}
             onChange={(e) => setGroupNameEn(e.target.value)}
             placeholder="Group name (en)"
-            className="h-10 min-w-0 flex-1 rounded-xl border border-ink-200 bg-paper px-3 text-sm text-ink-900 outline-none focus:border-accent-500"
+            className="h-10 min-w-0 flex-1 rounded-md border border-ink-400 bg-paper px-3 text-sm text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
           />
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -444,13 +444,13 @@ function ChoiceForm({
         value={nameUk}
         onChange={(e) => setNameUk(e.target.value)}
         placeholder="Варіант (укр)"
-        className="h-9 min-w-0 flex-1 rounded-lg border border-ink-200 bg-paper px-2.5 text-xs text-ink-900 outline-none focus:border-accent-500"
+        className="h-9 min-w-0 flex-1 rounded-sm border border-ink-400 bg-paper px-2.5 text-xs text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
       />
       <input
         value={nameEn}
         onChange={(e) => setNameEn(e.target.value)}
         placeholder="Choice (en)"
-        className="h-9 min-w-0 flex-1 rounded-lg border border-ink-200 bg-paper px-2.5 text-xs text-ink-900 outline-none focus:border-accent-500"
+        className="h-9 min-w-0 flex-1 rounded-sm border border-ink-400 bg-paper px-2.5 text-xs text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
       />
       <input
         type="number"
@@ -459,7 +459,7 @@ function ChoiceForm({
         value={priceDelta}
         onChange={(e) => setPriceDelta(e.target.value)}
         placeholder="+₴"
-        className="h-9 w-16 rounded-lg border border-ink-200 bg-paper px-2 text-xs text-ink-900 outline-none focus:border-accent-500"
+        className="h-9 w-16 rounded-sm border border-ink-400 bg-paper px-2 text-xs text-ink-900 placeholder:text-ink-500 outline-none focus:border-accent-500"
       />
       <label className="flex cursor-pointer items-center gap-1 text-[11px] text-ink-600">
         <input

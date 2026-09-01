@@ -48,7 +48,7 @@ export function OrderStatusCard({ order }: { order: Order }) {
   const { count, total } = getOrderTotals(order);
 
   return (
-    <div className="rounded-2xl border border-ink-100 bg-surface p-4">
+    <div className="rounded-lg border border-ink-100 bg-surface p-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-500">
           {t("table.order")}
@@ -84,9 +84,9 @@ export function OrderStatusCard({ order }: { order: Order }) {
               aria-label={`${t(STAGE_LABEL_KEY[stageItem])} — ${stateLabel}`}
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                 state === "done"
-                  ? "animate-attention-pop bg-sage-600 text-white"
+                  ? "animate-attention-pop bg-sage-600 text-on-accent"
                   : state === "current"
-                    ? "animate-attention-pop bg-accent-500 text-white"
+                    ? "animate-attention-pop bg-accent-500 text-on-accent"
                     : "bg-ink-100 text-ink-400"
               }`}
             >

@@ -16,6 +16,8 @@ export interface RestaurantDto {
   workingHours: LocalizedText;
   /** One of THEME_KEYS (see menu.service.ts) - drives data-theme across guest/waiter/admin. */
   themeKey: string;
+  /** Hero/cover photo behind RestaurantHeader - optional, header falls back gracefully. */
+  coverPhotoUrl?: string;
 }
 
 export interface CategoryDto {

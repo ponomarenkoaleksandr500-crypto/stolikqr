@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { playWaiterCallAlert, unlockWaiterAlert } from "@/lib/waiterAlert";
 import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
+import { SoundToggle } from "@/components/waiter/SoundToggle";
 import { io, type Socket } from "socket.io-client";
 import {
   ApiUnauthorizedError,
@@ -281,6 +282,7 @@ export default function WaiterDashboardPage() {
           >
             Стоп-лист
           </Link>
+          <SoundToggle />
           <ThemeToggle />
           <button
             type="button"

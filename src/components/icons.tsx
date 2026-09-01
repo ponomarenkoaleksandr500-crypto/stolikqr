@@ -267,3 +267,22 @@ export function PlateIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function BellOffIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M9.2 4.6A5 5 0 0 1 17 8.7v3.1M17.6 17.6H5.5l1.3-1.9V9.4c0-.6.1-1.2.3-1.8" />
+      <path d="M10.4 20.5a2 2 0 0 0 3.2 0" />
+      <path d="m3.5 3.5 17 17" />
+    </svg>
+  );
+}

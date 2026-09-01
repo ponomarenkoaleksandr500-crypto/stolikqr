@@ -18,6 +18,8 @@ import { formatPrice, formatRelativeTimeUk } from "@/lib/format";
 import { PotIcon } from "@/components/table/tableIcons";
 import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
+import { SoundToggle } from "@/components/waiter/SoundToggle";
+import { playWaiterCallAlert } from "@/lib/waiterAlert";
 
 // Demo Platform v1 is single-tenant - see stolikqr/src/app/page.tsx for the
 // same constant used on the Guest App side.
@@ -121,10 +123,18 @@ export default function TableDetailPage() {
     const onChange = () => void refresh();
     socket.on("order.created", onChange);
     socket.on("order.status.updated", onChange);
-    socket.on("waiterCall.created", onChange);
+    // A waiter looking at one table still needs to hear a call from another
+    // one - this screen used to be silent, so walking into a table's detail
+    // view meant missing every alert until you walked back out.
+    socket.on("waiterCall.created", () => {
+      playWaiterCallAlert();
+      onChange();
+    });
     socket.on("waiterCall.status.updated", onChange);
     socket.on("payment.status.updated", onChange);
     socket.on("table.closed", onChange);
+    socket.on("guestSession.started", onChange);
+    socket.on("connect", onChange);
 
     return () => {
       socket.close();
@@ -203,6 +213,8 @@ export default function TableDetailPage() {
             {table?.zone && <p className="text-xs text-ink-600">{table.zone}</p>}
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <SoundToggle />
         <button
           type="button"
           disabled={blocked || closing}
@@ -222,6 +234,7 @@ export default function TableDetailPage() {
         >
           {confirmingClose ? "Підтвердити?" : "Закрити стіл"}
         </button>
+        </div>
       </header>
 
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-5">

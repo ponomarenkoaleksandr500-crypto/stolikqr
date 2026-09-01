@@ -57,23 +57,22 @@ describe('TablesService.close', () => {
     await service.close('table-1', staff);
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.guestSession.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { tableId: 'table-1', endedAt: null },
-        data: expect.objectContaining({ endedAt: expect.any(Date) }),
-      }),
-    );
+
+    const [args] = prisma.guestSession.updateMany.mock.calls[0] as [
+      { where: { tableId: string; endedAt: null }; data: { endedAt: Date } },
+    ];
+    expect(args.where).toEqual({ tableId: 'table-1', endedAt: null });
+    expect(args.data.endedAt).toBeInstanceOf(Date);
   });
 
   it('stamps lastClosedAt in the same transaction as ending the sessions', async () => {
     await service.close('table-1', staff);
 
-    expect(prisma.table.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'table-1' },
-        data: expect.objectContaining({ lastClosedAt: expect.any(Date) }),
-      }),
-    );
+    const [args] = prisma.table.update.mock.calls[0] as [
+      { where: { id: string }; data: { lastClosedAt: Date } },
+    ];
+    expect(args.where).toEqual({ id: 'table-1' });
+    expect(args.data.lastClosedAt).toBeInstanceOf(Date);
   });
 
   it('refuses to close - and ends nothing - while an order is unpaid', async () => {

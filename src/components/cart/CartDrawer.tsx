@@ -9,7 +9,7 @@ import { CloseIcon, UtensilsIcon } from "@/components/icons";
 import { CartLineItem } from "./CartLineItem";
 import { useTableSession } from "@/table/TableSessionProvider";
 import { useOrder } from "@/table/useOrder";
-import { getOrderTotals, isOrderActive, isOrderEmpty, isOrderSettled } from "@/table/orderStatus";
+import { getOrderTotals, isOrderActive, isOrderEmpty } from "@/table/orderStatus";
 import { ReceiptCheckIcon } from "@/components/table/tableIcons";
 import { OrderLineItem } from "@/components/table/OrderLineItem";
 import { RecommendationsShelf } from "@/components/table/RecommendationsShelf";
@@ -31,7 +31,9 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
 
   const hasSubmittedItems = !isOrderEmpty(order);
-  const showPaidState = isOrderSettled(order, items.length);
+  // No thank-you/farewell state here any more: a paid, served order keeps
+  // showing as an order (with its paid indicator) rather than replacing
+  // the drawer with a goodbye.
   const nothingAtAll = !hasSubmittedItems && items.length === 0;
 
   const excludedDishIds = getExcludedDishIds(order, items);
@@ -84,17 +86,7 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
 
         <div className="flex-1 overflow-y-auto px-5">
           {isTableMode ? (
-            showPaidState ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center">
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-sage-100 text-sage-700">
-                  <UtensilsIcon className="h-7 w-7" />
-                </span>
-                <p className="font-display text-base font-semibold text-ink-800">
-                  {t("table.paidTitle")}
-                </p>
-                <p className="max-w-[24ch] text-sm text-ink-500">{t("table.paidHint")}</p>
-              </div>
-            ) : nothingAtAll ? (
+            nothingAtAll ? (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
                 <span className="flex h-16 w-16 items-center justify-center rounded-full bg-ink-50 text-ink-300">
                   <UtensilsIcon className="h-7 w-7" />

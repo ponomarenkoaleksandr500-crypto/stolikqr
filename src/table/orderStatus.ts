@@ -72,35 +72,34 @@ export function isOrderEmpty(order: Order | null): boolean {
 }
 
 /**
- * There is an order the guest should still be looking at.
+ * There is an order to show the guest. That is all it means now.
  *
- * "Still" means anything short of the visit being over, and the visit is
- * only over when the food has been served AND the bill is paid. Both of
- * the one-sided versions of this check are wrong, and both have shipped:
+ * Every conditional version of this has been wrong in one direction or
+ * the other, and each one shipped before being caught:
  *
  * - `!order.paidAt` hid the status from a guest who paid up front while
  *   the kitchen had not started.
- * - `!isKitchenComplete(order)` hid it from a guest whose food had been
- *   served but who had not paid yet - the waiter marking an order
- *   "Видано" dropped the guest to the empty-table screen and took away
- *   the pay button with it.
+ * - `!isKitchenComplete(order)` hid it from a guest whose food was served
+ *   but who had not paid, taking the pay button away with it.
+ *
+ * The guest is never shown out of their own table, so an order stays
+ * visible for as long as it exists. Whether the round is finished is a
+ * separate question - see isOrderSettled, which only decides whether to
+ * offer another round.
  */
 export function isOrderActive(order: Order | null): boolean {
-  if (isOrderEmpty(order)) return false;
-  return !(Boolean(order?.paidAt) && isKitchenComplete(order));
+  return !isOrderEmpty(order);
 }
 
 /**
- * The visit is genuinely over: paid, the kitchen has served everything, and
- * nothing new is pending in the cart. Only then does the table "close" and
- * the guest get the thank-you screen.
+ * This round is finished: paid, everything served, and nothing new pending
+ * in the cart.
  *
- * The kitchen condition is the fix for guests paying up front: payment
- * alone used to close the table, so someone who ordered and paid in one go
- * was told "thank you, have a nice day" before the food was even started.
- * A paid order with a fresh, unsubmitted cart still means the guest is
- * starting another round (see orderStore.ts: submitCartItems opens a new
- * Order once the previous one is paid).
+ * This no longer hides anything from the guest - there is no thank-you
+ * screen any more. It only decides whether it makes sense to offer
+ * "order again", since a fresh, unsubmitted cart already means the guest
+ * has started the next round themselves (see orderStore.ts:
+ * submitCartItems opens a new Order once the previous one is paid).
  */
 export function isOrderSettled(order: Order | null, pendingCartCount: number): boolean {
   return Boolean(order?.paidAt) && isKitchenComplete(order) && pendingCartCount === 0;

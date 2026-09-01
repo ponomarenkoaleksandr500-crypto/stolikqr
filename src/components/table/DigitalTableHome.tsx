@@ -39,8 +39,12 @@ export function DigitalTableHome({
 
   const menuHref = `/r/${restaurant.slug}/${firstCategorySlug}`;
   const hasPendingCart = cartItems.length > 0;
-  const showPaidState = isOrderSettled(order, cartItems.length);
+  // There is no "your visit is over" screen any more: the guest is never
+  // shown out of their own table. An order stays on screen for as long as
+  // it exists; being paid and served just means every step of the status
+  // card is complete and a fresh round can be offered.
   const showActiveOrder = isOrderActive(order);
+  const roundComplete = isOrderSettled(order, cartItems.length);
   const excludedDishIds = getExcludedDishIds(order, cartItems);
   const recommended = getRecommendedDishes(dishes, excludedDishIds, 6);
   const shelfTitle =
@@ -95,25 +99,12 @@ export function DigitalTableHome({
         </div>
       )}
 
-      {showPaidState ? (
-        <div className="flex flex-col gap-3">
-          <div className="rounded-lg bg-sage-100 p-5 text-center">
-            <p className="font-display text-lg font-semibold text-sage-700">{t("table.paidTitle")}</p>
-            <p className="mt-1.5 text-sm text-sage-700/80">{t("table.paidHint")}</p>
-          </div>
-          {lastOrder && session && (
-            <OrderAgainCard lastOrder={lastOrder} onReorder={() => reorderLast(session.id)} />
-          )}
-          <Link
-            href={menuHref}
-            className="flex min-h-12 items-center justify-center rounded-lg border border-ink-200 bg-surface px-4 text-sm font-semibold text-ink-800 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
-          >
-            {t("table.backToMenu")}
-          </Link>
-        </div>
-      ) : showActiveOrder && order ? (
+      {showActiveOrder && order ? (
         <>
           <OrderStatusCard order={order} />
+          {roundComplete && lastOrder && session && (
+            <OrderAgainCard lastOrder={lastOrder} onReorder={() => reorderLast(session.id)} />
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Link
               href={menuHref}

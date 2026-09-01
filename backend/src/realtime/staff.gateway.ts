@@ -10,6 +10,7 @@ import type { Server, Socket } from 'socket.io';
 import type { JwtPayload } from '../auth/auth.types';
 import {
   DomainEvents,
+  type GuestSessionEvent,
   type OrderEvent,
   type PaymentEvent,
   type TableClosedEvent,
@@ -93,5 +94,22 @@ export class StaffGateway implements OnGatewayConnection {
       tableId: event.tableId,
       closedAt: event.closedAt,
     });
+  }
+
+  /**
+   * A guest scanning the QR is what turns a table from FREE to OCCUPIED, and
+   * it was the one table-state transition the Waiter App never heard about:
+   * the domain event existed and analytics listened to it, but this gateway
+   * never forwarded it, so the floor plan only caught up once something else
+   * happened at that table.
+   */
+  @OnEvent(DomainEvents.GUEST_SESSION_STARTED)
+  handleGuestSessionStarted(event: GuestSessionEvent) {
+    this.server
+      .to(`restaurant:${event.restaurantId}`)
+      .emit('guestSession.started', {
+        tableId: event.tableId,
+        guestSessionId: event.guestSessionId,
+      });
   }
 }

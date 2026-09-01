@@ -85,8 +85,14 @@ const TABLE_STATUS_STYLE: Record<TableFloorStatus, string> = {
   CALLED_WAITER: "animate-call-pulse border-danger-500 bg-danger-50 text-danger-600",
   AWAITING_PAYMENT: "border-gold-300 bg-gold-100 text-gold-700",
   ORDERED: "border-sage-600/30 bg-sage-100 text-sage-700",
-  OCCUPIED: "border-ink-300 bg-ink-100 text-ink-700",
-  FREE: "border-ink-200 bg-surface text-ink-700 hover:border-ink-300",
+  // OCCUPIED and FREE used to be two neutral greys one step apart
+  // (bg-ink-100 vs bg-surface), which is nearly the same tile at a glance
+  // and unreadable across a room. "Guests are seated" is a real state, so
+  // it gets the info hue - the one semantic colour the palette defines and
+  // nothing else was using. FREE keeps no fill at all and recedes into the
+  // page, which is what "nothing to do here" should look like.
+  OCCUPIED: "border-info-600/50 bg-info-50 text-info-600",
+  FREE: "border-ink-200 bg-transparent text-ink-500 hover:border-ink-400 hover:text-ink-700",
 };
 const TABLE_STATUS_LABEL: Record<TableFloorStatus, string> = {
   CALLED_WAITER: "Викликає офіціанта",
@@ -197,6 +203,15 @@ export default function WaiterDashboardPage() {
     socket.on("waiterCall.status.updated", onChange);
     socket.on("payment.status.updated", onChange);
     socket.on("table.closed", onChange);
+    // A guest scanning the QR is what makes a table OCCUPIED - without this
+    // the floor plan sat on stale state until something else happened there.
+    socket.on("guestSession.started", onChange);
+
+    // Socket.IO reconnects on its own, but every event that fired while the
+    // connection was down is simply gone. Refetching on (re)connect is what
+    // makes "updates on any change" true rather than best-effort - a waiter
+    // walking through a dead-wifi corner must not come back to a stale plan.
+    socket.on("connect", onChange);
 
     // Re-renders the "N хв тому" labels periodically - the underlying data
     // only refetches on a real socket event, but elapsed time keeps moving

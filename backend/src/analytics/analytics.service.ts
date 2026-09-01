@@ -159,8 +159,46 @@ export class AnalyticsService {
     const countByName = new Map(counts.map((c) => [c.name, c._count._all]));
     const get = (name: string) => countByName.get(name) ?? 0;
 
-    const qrSessions = get(SESSION_STARTED);
+    /*
+     * qrSessions used to be the count of SESSION_STARTED events. That event
+     * only fires when a genuinely new GuestSession row is created, and
+     * createOrResume() reuses any session with endedAt = null - so a table
+     * whose session was opened yesterday and never closed produced orders
+     * today against zero sessions today. The dashboard showed things like
+     * "2 замовлень з 1 QR-сесій" and a 200% conversion rate, which is how
+     * this was noticed.
+     *
+     * Counting the distinct guest sessions that were actually active today
+     * matches what "QR-сесії" means to a restaurant owner, and it puts the
+     * conversion numerator and denominator in the same population.
+     */
+    const [activeSessions, convertedSessions] = await Promise.all([
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          occurredAt: { gte: startOfToday },
+          guestSessionId: { not: null },
+        },
+        select: { guestSessionId: true },
+        distinct: ['guestSessionId'],
+      }),
+      this.prisma.analyticsEvent.findMany({
+        where: {
+          restaurantId: restaurant.id,
+          name: ORDER_CREATED,
+          occurredAt: { gte: startOfToday },
+          guestSessionId: { not: null },
+        },
+        select: { guestSessionId: true },
+        distinct: ['guestSessionId'],
+      }),
+    ]);
+
+    const qrSessions = activeSessions.length;
     const orders = get(ORDER_CREATED);
+    // Sessions that ordered, not orders placed: one table ordering twice is
+    // one converted guest, so this can never exceed 100%.
+    const orderingSessions = convertedSessions.length;
 
     const [topViewedDishes, topAddedToCartDishes, orderStats] =
       await Promise.all([
@@ -182,7 +220,9 @@ export class AnalyticsService {
       orders,
       waiterCalls: get(WAITER_CALLED),
       conversionRate:
-        qrSessions > 0 ? Math.round((orders / qrSessions) * 1000) / 10 : 0,
+        qrSessions > 0
+          ? Math.round((orderingSessions / qrSessions) * 1000) / 10
+          : 0,
       topViewedDishes,
       topAddedToCartDishes,
       ...orderStats,

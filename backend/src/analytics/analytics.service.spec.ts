@@ -31,6 +31,12 @@ function buildMockPrisma() {
     analyticsEvent: {
       create: jest.fn(),
       groupBy: jest.fn<Promise<GroupByRow[]>, [GroupByArgs]>(),
+      // getSummary counts distinct guest sessions (active today, and those
+      // that ordered) rather than SESSION_STARTED events - see the service.
+      findMany: jest.fn<
+        Promise<{ guestSessionId: string | null }[]>,
+        [{ where?: { name?: string } }]
+      >(),
     },
   };
 }
@@ -39,6 +45,24 @@ function buildMockPrisma() {
 function stubEmptyRankings(prisma: ReturnType<typeof buildMockPrisma>) {
   prisma.dish.findMany.mockResolvedValue([]);
   prisma.order.findMany.mockResolvedValue([]);
+  prisma.analyticsEvent.findMany.mockResolvedValue([]);
+}
+
+/** Distinct-session rows: `active` sessions seen today, `ordering` a subset that ordered. */
+function stubSessions(
+  prisma: ReturnType<typeof buildMockPrisma>,
+  active: number,
+  ordering: number,
+) {
+  const ids = (n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => ({ guestSessionId: `${prefix}-${i}` }));
+  prisma.analyticsEvent.findMany.mockImplementation(({ where }) =>
+    Promise.resolve(
+      where?.name === 'ORDER_CREATED'
+        ? ids(ordering, 'session')
+        : ids(active, 'session'),
+    ),
+  );
 }
 
 describe('AnalyticsService', () => {
@@ -191,12 +215,37 @@ describe('AnalyticsService', () => {
         ),
       );
       stubEmptyRankings(prisma);
+      stubSessions(prisma, 47, 19);
 
       const result = await service.getSummary('demo-restaurant', staff);
 
       expect(result.qrSessions).toBe(47);
       expect(result.orders).toBe(19);
       expect(result.conversionRate).toBeCloseTo(40.4, 1);
+    });
+
+    it('never reports a conversion rate above 100%, even when one session orders repeatedly', async () => {
+      prisma.restaurant.findUnique.mockResolvedValue({
+        id: 'restaurant-1',
+        slug: 'demo-restaurant',
+      });
+      // The exact shape that produced the reported "2 замовлень з 1 QR-сесій"
+      // and a 200% conversion rate: one guest session, two orders.
+      prisma.analyticsEvent.groupBy.mockImplementation(({ by }) =>
+        Promise.resolve(
+          by[0] === 'name'
+            ? [{ name: 'ORDER_CREATED', _count: { _all: 2 } }]
+            : [],
+        ),
+      );
+      stubEmptyRankings(prisma);
+      stubSessions(prisma, 1, 1);
+
+      const result = await service.getSummary('demo-restaurant', staff);
+
+      expect(result.qrSessions).toBe(1);
+      expect(result.orders).toBe(2);
+      expect(result.conversionRate).toBe(100);
     });
 
     it('returns 0 conversion when there are no sessions yet', async () => {
@@ -221,6 +270,7 @@ describe('AnalyticsService', () => {
         id: 'restaurant-1',
         slug: 'demo-restaurant',
       });
+      prisma.analyticsEvent.findMany.mockResolvedValue([]);
       prisma.analyticsEvent.groupBy.mockImplementation(({ by, where }) => {
         if (by[0] === 'name') return Promise.resolve([]);
         if (where.name === 'DISH_VIEWED') {
@@ -257,6 +307,7 @@ describe('AnalyticsService', () => {
         slug: 'demo-restaurant',
       });
       prisma.analyticsEvent.groupBy.mockResolvedValue([]);
+      prisma.analyticsEvent.findMany.mockResolvedValue([]);
       prisma.dish.findMany.mockResolvedValue([]);
       prisma.order.findMany.mockResolvedValue([
         {

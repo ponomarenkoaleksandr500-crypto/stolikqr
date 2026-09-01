@@ -24,8 +24,13 @@ export function TableSessionBootstrap({
   // with the backend (POST /guest-sessions) - see tableStore.ts - so a reload
   // resumes the same server-side session rather than just trusting local state.
   useEffect(() => {
-    track("QR_SCANNED");
-    startSession(restaurantSlug, tableCode, qrToken);
+    // QR_SCANNED is reported AFTER the session is established, not before.
+    // useAnalytics reads guestSessionId live from TableSessionProvider, so
+    // firing it first (as this used to) recorded every scan with no session
+    // attached, which made the event useless for counting distinct guests.
+    void startSession(restaurantSlug, tableCode, qrToken).then(() => {
+      track("QR_SCANNED");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- track is recreated per render, only route params should re-trigger this
   }, [restaurantSlug, tableCode, qrToken, startSession]);
 

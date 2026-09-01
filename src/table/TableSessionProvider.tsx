@@ -17,7 +17,8 @@ interface TableSessionContextValue {
   session: GuestSession | null;
   table: Table | null;
   isTableMode: boolean;
-  startSession: (restaurantSlug: string, tableCode: string, qrToken: string) => void;
+  /** Resolves once the backend has confirmed the session, so callers can act on it (see TableSessionBootstrap). */
+  startSession: (restaurantSlug: string, tableCode: string, qrToken: string) => Promise<void>;
   endSession: () => void;
 }
 

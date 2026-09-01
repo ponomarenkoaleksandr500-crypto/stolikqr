@@ -10,6 +10,7 @@ import { CartLineItem } from "./CartLineItem";
 import { useTableSession } from "@/table/TableSessionProvider";
 import { useOrder } from "@/table/useOrder";
 import { getOrderTotals, isOrderActive, isOrderEmpty, isOrderSettled } from "@/table/orderStatus";
+import { ReceiptCheckIcon } from "@/components/table/tableIcons";
 import { OrderLineItem } from "@/components/table/OrderLineItem";
 import { RecommendationsShelf } from "@/components/table/RecommendationsShelf";
 import { useDishSelection } from "@/components/menu/useDishSelection";
@@ -115,13 +116,24 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
                         <OrderLineItem key={item.id} item={item} />
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      onClick={() => setShowPaymentSheet(true)}
-                      className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full border border-ink-200 px-4 text-sm font-semibold text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
-                    >
-                      {t("payment.payButton")} · {formatPrice(getOrderTotals(order).total)}
-                    </button>
+                    {/* An order stays "active" after payment now, because the
+                        guest is still waiting for the kitchen. Without this
+                        guard the pay button would stay live on an order that
+                        is already settled and invite paying twice. */}
+                    {order.paidAt ? (
+                      <p className="mt-3 flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-sage-100 px-4 text-sm font-semibold text-sage-700">
+                        <ReceiptCheckIcon className="h-4 w-4" />
+                        {t("table.paidAlready")} · {formatPrice(getOrderTotals(order).total)}
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentSheet(true)}
+                        className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full border border-ink-200 px-4 text-sm font-semibold text-ink-800 transition-colors hover:border-accent-300 hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
+                      >
+                        {t("payment.payButton")} · {formatPrice(getOrderTotals(order).total)}
+                      </button>
+                    )}
                   </div>
                 )}
                 {items.length > 0 && (

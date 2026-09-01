@@ -11,6 +11,7 @@ import {
   getPrimaryStatus,
   getNewItemsCount,
   getOrderTotals,
+  isKitchenComplete,
 } from "@/table/orderStatus";
 import type { TranslationKey } from "@/i18n/translations";
 import type { Order, OrderStageStatus } from "@/types/table";
@@ -46,6 +47,10 @@ export function OrderStatusCard({ order }: { order: Order }) {
   const currentIndex = stageProgressIndex(stage);
   const newItemsCount = getNewItemsCount(order);
   const { count, total } = getOrderTotals(order);
+  // Paid, but the kitchen is still working: the guest paid up front and is
+  // waiting for food. Payment is shown as its own fact rather than as the
+  // headline stage, so the status stepper keeps reporting the real progress.
+  const paidWhileCooking = Boolean(order.paidAt) && !isKitchenComplete(order);
 
   return (
     <div className="rounded-lg border border-ink-100 bg-surface p-4">
@@ -111,6 +116,13 @@ export function OrderStatusCard({ order }: { order: Order }) {
       <p className="mt-3 text-sm text-ink-600" aria-live="polite">
         {t(STAGE_CAPTION_KEY[stage])}
       </p>
+
+      {paidWhileCooking && (
+        <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sage-100 px-2.5 py-1 text-xs font-semibold text-sage-700">
+          <ReceiptCheckIcon className="h-3.5 w-3.5" />
+          {t("table.paidAlready")}
+        </span>
+      )}
 
       {newItemsCount > 0 && (
         <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-accent-50 px-2.5 py-1 text-xs font-semibold text-accent-700">

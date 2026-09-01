@@ -72,13 +72,22 @@ export function isOrderEmpty(order: Order | null): boolean {
 }
 
 /**
- * There is something for the guest to actively track: an order with items
- * that the kitchen has not finished serving. Deliberately independent of
- * payment - a guest who paid on ordering is still waiting for their food,
- * and hiding the status from them at that point is what this fixes.
+ * There is an order the guest should still be looking at.
+ *
+ * "Still" means anything short of the visit being over, and the visit is
+ * only over when the food has been served AND the bill is paid. Both of
+ * the one-sided versions of this check are wrong, and both have shipped:
+ *
+ * - `!order.paidAt` hid the status from a guest who paid up front while
+ *   the kitchen had not started.
+ * - `!isKitchenComplete(order)` hid it from a guest whose food had been
+ *   served but who had not paid yet - the waiter marking an order
+ *   "Видано" dropped the guest to the empty-table screen and took away
+ *   the pay button with it.
  */
 export function isOrderActive(order: Order | null): boolean {
-  return !isOrderEmpty(order) && !isKitchenComplete(order);
+  if (isOrderEmpty(order)) return false;
+  return !(Boolean(order?.paidAt) && isKitchenComplete(order));
 }
 
 /**

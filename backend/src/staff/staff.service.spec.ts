@@ -37,7 +37,7 @@ describe('StaffService', () => {
   let prisma: ReturnType<typeof buildMockPrisma>;
   let ordersService: {
     findActiveForRestaurant: jest.Mock;
-    findUnpaidTableIds: jest.Mock;
+    findUnpaidOrderRows: jest.Mock;
   };
   let waiterCallsService: { findActiveForRestaurant: jest.Mock };
 
@@ -45,7 +45,7 @@ describe('StaffService', () => {
     prisma = buildMockPrisma();
     ordersService = {
       findActiveForRestaurant: jest.fn().mockResolvedValue([]),
-      findUnpaidTableIds: jest.fn().mockResolvedValue([]),
+      findUnpaidOrderRows: jest.fn().mockResolvedValue([]),
     };
     waiterCallsService = {
       findActiveForRestaurant: jest.fn().mockResolvedValue([]),
@@ -103,7 +103,7 @@ describe('StaffService', () => {
     it('is ORDERED when the table has an active (not-yet-served) order', async () => {
       prisma.table.findMany.mockResolvedValue([table()]);
       ordersService.findActiveForRestaurant.mockResolvedValue([
-        { tableId: 'table-1' },
+        { tableId: 'table-1', createdAt: 2_000 },
       ]);
 
       const result = await service.getOverview('demo', staff);
@@ -114,7 +114,9 @@ describe('StaffService', () => {
 
     it('is AWAITING_PAYMENT when everything is served but unpaid', async () => {
       prisma.table.findMany.mockResolvedValue([table()]);
-      ordersService.findUnpaidTableIds.mockResolvedValue(['table-1']);
+      ordersService.findUnpaidOrderRows.mockResolvedValue([
+        { tableId: 'table-1', createdAt: new Date(1_000) },
+      ]);
       // Nothing in findActiveForRestaurant - the order is SERVED, so it
       // dropped out of the "still cooking/serving" set.
 
@@ -126,9 +128,44 @@ describe('StaffService', () => {
     it('prefers ORDERED over AWAITING_PAYMENT when one batch is served-unpaid and another is still cooking', async () => {
       prisma.table.findMany.mockResolvedValue([table()]);
       ordersService.findActiveForRestaurant.mockResolvedValue([
-        { tableId: 'table-1' },
+        { tableId: 'table-1', createdAt: 2_000 },
       ]);
-      ordersService.findUnpaidTableIds.mockResolvedValue(['table-1']);
+      ordersService.findUnpaidOrderRows.mockResolvedValue([
+        { tableId: 'table-1', createdAt: new Date(1_000) },
+      ]);
+
+      const result = await service.getOverview('demo', staff);
+
+      expect(result.tables[0].status).toBe('ORDERED');
+    });
+
+    it('goes back to FREE after the table is closed, even if an old order was never served', async () => {
+      // The reported "столи не закриваються": closing a table only stamps
+      // lastClosedAt, so an order the guest paid for up front and the
+      // kitchen never advanced past NEW kept the table on ORDERED forever.
+      prisma.table.findMany.mockResolvedValue([
+        table({ lastClosedAt: new Date(5_000) }),
+      ]);
+      ordersService.findActiveForRestaurant.mockResolvedValue([
+        { tableId: 'table-1', createdAt: 2_000 },
+      ]);
+      ordersService.findUnpaidOrderRows.mockResolvedValue([
+        { tableId: 'table-1', createdAt: new Date(2_000) },
+      ]);
+
+      const result = await service.getOverview('demo', staff);
+
+      expect(result.tables[0].status).toBe('FREE');
+      expect(result.tables[0].hasActiveOrder).toBe(false);
+    });
+
+    it('still reports an order placed AFTER the last close', async () => {
+      prisma.table.findMany.mockResolvedValue([
+        table({ lastClosedAt: new Date(5_000) }),
+      ]);
+      ordersService.findActiveForRestaurant.mockResolvedValue([
+        { tableId: 'table-1', createdAt: 9_000 },
+      ]);
 
       const result = await service.getOverview('demo', staff);
 
@@ -138,11 +175,13 @@ describe('StaffService', () => {
     it('prefers CALLED_WAITER over every other state', async () => {
       prisma.table.findMany.mockResolvedValue([table()]);
       ordersService.findActiveForRestaurant.mockResolvedValue([
-        { tableId: 'table-1' },
+        { tableId: 'table-1', createdAt: 2_000 },
       ]);
-      ordersService.findUnpaidTableIds.mockResolvedValue(['table-1']);
+      ordersService.findUnpaidOrderRows.mockResolvedValue([
+        { tableId: 'table-1', createdAt: new Date(1_000) },
+      ]);
       waiterCallsService.findActiveForRestaurant.mockResolvedValue([
-        { tableId: 'table-1' },
+        { tableId: 'table-1', createdAt: 2_000 },
       ]);
 
       const result = await service.getOverview('demo', staff);

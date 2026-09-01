@@ -30,14 +30,14 @@ export class StaffService {
       throw new ForbiddenException('Staff does not belong to this restaurant');
     }
 
-    const [tables, activeOrders, activeCalls, unpaidTableIds, recentSessions] =
+    const [tables, activeOrders, activeCalls, unpaidOrderRows, recentSessions] =
       await Promise.all([
         this.prisma.table.findMany({
           where: { location: { restaurantId: restaurant.id } },
         }),
         this.ordersService.findActiveForRestaurant(restaurant.id),
         this.waiterCallsService.findActiveForRestaurant(restaurant.id),
-        this.ordersService.findUnpaidTableIds(restaurant.id),
+        this.ordersService.findUnpaidOrderRows(restaurant.id),
         // "Occupied" reads GuestSession the same way orders read visit
         // history elsewhere (OrdersService.findForGuestSession): a session
         // only counts if it started after the table's own last close, since
@@ -60,9 +60,35 @@ export class StaffService {
         : a.code.localeCompare(b.code),
     );
 
-    const tableIdsWithOrder = new Set(activeOrders.map((o) => o.tableId));
+    /*
+     * Closing a table only stamps Table.lastClosedAt (see
+     * TablesService.close); it does not touch the orders sitting on it. So
+     * anything still not SERVED - which includes an order the guest paid
+     * for up front and the kitchen never advanced - kept the table pinned
+     * to ORDERED forever, and the floor plan never showed it free again.
+     *
+     * Orders are now measured against the table's own last close, exactly
+     * the convention hasGuestSession below already used.
+     */
+    const lastClosedAtById = new Map(
+      tables.map((t) => [t.id, t.lastClosedAt?.getTime() ?? null]),
+    );
+    const afterLastClose = (tableId: string, createdAt: number): boolean => {
+      const closedAt = lastClosedAtById.get(tableId) ?? null;
+      return closedAt === null || createdAt > closedAt;
+    };
+
+    const tableIdsWithOrder = new Set(
+      activeOrders
+        .filter((o) => afterLastClose(o.tableId, o.createdAt))
+        .map((o) => o.tableId),
+    );
     const tableIdsWithCall = new Set(activeCalls.map((c) => c.tableId));
-    const tableIdsWithUnpaidOrder = new Set(unpaidTableIds);
+    const tableIdsWithUnpaidOrder = new Set(
+      unpaidOrderRows
+        .filter((r) => afterLastClose(r.tableId, r.createdAt.getTime()))
+        .map((r) => r.tableId),
+    );
 
     return {
       tables: tables.map((t) => {

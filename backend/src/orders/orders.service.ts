@@ -292,13 +292,15 @@ export class OrdersService {
    * with hasActiveOrder to tell "still cooking/serving" apart from
    * "everything's out, just needs payment".
    */
-  async findUnpaidTableIds(restaurantId: string): Promise<string[]> {
-    const rows = await this.prisma.order.findMany({
+  async findUnpaidOrderRows(
+    restaurantId: string,
+  ): Promise<{ tableId: string; createdAt: Date }[]> {
+    // createdAt comes back so the caller can ignore orders that predate the
+    // table's last close - see StaffService.getOverview.
+    return this.prisma.order.findMany({
       where: { paidAt: null, table: { location: { restaurantId } } },
-      select: { tableId: true },
-      distinct: ['tableId'],
+      select: { tableId: true, createdAt: true },
     });
-    return rows.map((r) => r.tableId);
   }
 
   async findById(id: string): Promise<OrderDto> {

@@ -99,10 +99,29 @@ export class TablesService {
     }
 
     const closedAt = new Date();
-    await this.prisma.table.update({
-      where: { id: tableId },
-      data: { lastClosedAt: closedAt },
-    });
+    await this.prisma.$transaction([
+      this.prisma.table.update({
+        where: { id: tableId },
+        data: { lastClosedAt: closedAt },
+      }),
+      /*
+       * Closing the table ends the visit, so it must end the guest sessions
+       * on it. GuestSession.endedAt existed but was never written by
+       * anything, and GuestSessionsService.createOrResume resumes ANY
+       * session with endedAt = null - so a phone that had scanned this
+       * table before got its old session back, complete with its old
+       * startedAt. getOverview only counts a session that started after the
+       * table's last close, so those guests stayed invisible: the floor plan
+       * showed FREE while people sat there.
+       *
+       * Ending the sessions here makes the next scan create a genuinely new
+       * one, which is what the rest of the logic already expects.
+       */
+      this.prisma.guestSession.updateMany({
+        where: { tableId, endedAt: null },
+        data: { endedAt: closedAt },
+      }),
+    ]);
 
     this.eventEmitter.emit(DomainEvents.TABLE_CLOSED, {
       restaurantId: table.location.restaurantId,

@@ -44,7 +44,13 @@ export class StaffService {
         // GuestSession has no other lifecycle end (see GuestSessionsService -
         // endedAt is never actually set anywhere yet).
         this.prisma.guestSession.findMany({
-          where: { table: { location: { restaurantId: restaurant.id } } },
+          // endedAt is written when a table is closed (TablesService.close).
+          // The lastClosedAt comparison below is kept as well, because rows
+          // created before that existed still have endedAt = null.
+          where: {
+            endedAt: null,
+            table: { location: { restaurantId: restaurant.id } },
+          },
           select: { tableId: true, startedAt: true },
         }),
       ]);

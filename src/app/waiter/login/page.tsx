@@ -1,5 +1,6 @@
 "use client";
 
+import { unlockWaiterAlert } from "@/lib/waiterAlert";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { fetchMenuByRestaurantSlug, staffLogin } from "@/lib/api";
@@ -26,6 +27,11 @@ export default function WaiterLoginPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    // Authorise the call alert here: this submit is a real user gesture, it
+    // is the one tap every waiter makes, and Next.js keeps the same JS
+    // context across the client-side navigation to /waiter - so the audio
+    // element unlocked here is still unlocked on the floor plan.
+    unlockWaiterAlert();
     setError(null);
     setIsSubmitting(true);
     try {

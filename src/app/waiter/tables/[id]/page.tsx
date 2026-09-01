@@ -18,8 +18,7 @@ import { formatPrice, formatRelativeTimeUk } from "@/lib/format";
 import { PotIcon } from "@/components/table/tableIcons";
 import { CheckIcon, ChevronRightIcon } from "@/components/icons";
 import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
-import { SoundToggle } from "@/components/waiter/SoundToggle";
-import { playWaiterCallAlert } from "@/lib/waiterAlert";
+import { isAudioUnlocked, playWaiterCallAlert, unlockWaiterAlert } from "@/lib/waiterAlert";
 
 // Demo Platform v1 is single-tenant - see stolikqr/src/app/page.tsx for the
 // same constant used on the Guest App side.
@@ -104,6 +103,24 @@ export default function TableDetailPage() {
       console.error(err);
     }
   }, [goToLogin, tableId]);
+
+  useEffect(() => {
+    const unlock = () => {
+      if (isAudioUnlocked()) {
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("keydown", unlock);
+        return;
+      }
+      unlockWaiterAlert();
+    };
+    unlock();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     const staff = getStoredStaff();
@@ -213,8 +230,6 @@ export default function TableDetailPage() {
             {table?.zone && <p className="text-xs text-ink-600">{table.zone}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SoundToggle />
         <button
           type="button"
           disabled={blocked || closing}
@@ -234,7 +249,6 @@ export default function TableDetailPage() {
         >
           {confirmingClose ? "Підтвердити?" : "Закрити стіл"}
         </button>
-        </div>
       </header>
 
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-5">

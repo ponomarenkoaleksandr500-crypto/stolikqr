@@ -4,9 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { playWaiterCallAlert, unlockWaiterAlert } from "@/lib/waiterAlert";
+import { isAudioUnlocked, playWaiterCallAlert, unlockWaiterAlert } from "@/lib/waiterAlert";
 import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
-import { SoundToggle } from "@/components/waiter/SoundToggle";
 import { io, type Socket } from "socket.io-client";
 import {
   ApiUnauthorizedError,
@@ -128,14 +127,23 @@ export default function WaiterDashboardPage() {
   // with it, and the waiter's login click happened on the previous route.
   // The first touch anywhere on this screen unlocks the audio context, so
   // the alert works from the first real call onwards.
+  // Safety net for a session restored without a login (the login submit is
+  // the primary unlock - see waiter/login). Deliberately NOT {once:true}:
+  // the first attempt can be refused, and giving up after one try is how
+  // the alert ended up silent on a real phone. Keep re-arming until the
+  // browser actually accepts it.
   useEffect(() => {
     const unlock = () => {
+      if (isAudioUnlocked()) {
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("keydown", unlock);
+        return;
+      }
       unlockWaiterAlert();
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
     };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    unlock();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
@@ -282,7 +290,6 @@ export default function WaiterDashboardPage() {
           >
             Стоп-лист
           </Link>
-          <SoundToggle />
           <ThemeToggle />
           <button
             type="button"

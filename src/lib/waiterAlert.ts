@@ -1,145 +1,98 @@
+import { WAITER_ALERT_WAV } from "./waiterAlertSound";
+
 /**
- * Alert for a new waiter call: a short tone plus a vibration.
+ * Alert for a new waiter call: a tone plus a vibration. There is no way to
+ * turn it off - a missed call is the thing this product exists to prevent.
  *
- * The sound is synthesised with the Web Audio API rather than shipped as an
- * audio file - nothing to download on restaurant wifi and nothing to 404 on
- * a deploy.
+ * Why an <audio> element and not the Web Audio API, which this used before:
+ * a single play() inside a real user gesture permanently authorises later
+ * programmatic playback of that element, including on iOS. The Web Audio
+ * route needed the AudioContext to be resumed inside a gesture too, but was
+ * far more fragile in practice and kept staying "suspended" on real phones.
  *
- * The hard part is not making the sound, it is being allowed to. Browsers
- * refuse audio until the page has had a trusted user gesture, and the
- * waiter's login click happens on the previous route. Relying on "the first
- * time they happen to touch the screen" is exactly why this did not work:
- * a call can easily arrive before the waiter touches anything.
- *
- * So there is an explicit control in the Waiter App header. Tapping it is
- * itself the gesture that unlocks audio, and it doubles as a mute for a
- * quiet room. Passive unlocking on first interaction is kept as a bonus,
- * not as the mechanism.
+ * Why unlocking is wired to the login submit: that is the one tap every
+ * waiter makes, it is a genuine user gesture, and Next.js keeps the same JS
+ * context across the client-side navigation to /waiter - so the element
+ * unlocked on the login screen is still unlocked on the floor plan. Every
+ * later interaction re-arms it as well, in case the session was restored
+ * without a login.
  */
 
-const SOUND_KEY = "stolikqr:waiterSound";
+let audio: HTMLAudioElement | null = null;
+let unlocked = false;
 
-let audioContext: AudioContext | null = null;
-const listeners = new Set<() => void>();
-
-type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
-
-function emit() {
-  for (const listener of listeners) listener();
-}
-
-function getContext(): AudioContext | null {
+function getAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
-  if (audioContext) return audioContext;
-  const Ctor = window.AudioContext ?? (window as WebkitWindow).webkitAudioContext;
-  if (!Ctor) return null;
-  try {
-    audioContext = new Ctor();
-  } catch {
-    return null;
-  }
-  return audioContext;
-}
-
-/** Subscribe to sound-preference / unlock-state changes (used by the header toggle). */
-export function subscribeAlert(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-export function isSoundEnabled(): boolean {
-  try {
-    return localStorage.getItem(SOUND_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
-
-export function getSoundServerSnapshot(): boolean {
-  return true;
-}
-
-/** True once the browser has actually let the audio context start. */
-export function isAudioReady(): boolean {
-  return audioContext?.state === "running";
+  if (audio) return audio;
+  audio = new Audio(WAITER_ALERT_WAV);
+  audio.preload = "auto";
+  // Keeps iOS from taking over the screen with a media player.
+  audio.setAttribute("playsinline", "");
+  audio.volume = 1;
+  return audio;
 }
 
 /**
- * Must be called from a real user gesture. Creating AND resuming the context
- * synchronously inside the handler is what iOS Safari requires; doing it
- * later, or from a synthetic event, silently leaves it suspended.
+ * Must be called from a real user gesture. Playing and immediately resetting
+ * is the standard way to authorise an element for later autoplay; the sound
+ * is inaudible because it is stopped within a few milliseconds.
  */
 export function unlockWaiterAlert(): void {
-  const ctx = getContext();
-  if (!ctx) return;
-  if (ctx.state === "suspended") {
-    void ctx.resume().then(emit).catch(() => {});
-  } else {
-    emit();
-  }
+  const el = getAudio();
+  if (!el || unlocked) return;
+  // Muted so the unlock itself is inaudible. The volume is NOT restored
+  // here on purpose: play() resolves asynchronously, repeated unlock
+  // attempts kept re-muting the element, and a call landing inside that
+  // window played silently - which is exactly how the alert reached a real
+  // phone as "no sound". playWaiterCallAlert() below now sets the volume
+  // itself, every time, so a leftover 0 can never survive into an alert.
+  el.volume = 0;
+  void el
+    .play()
+    .then(() => {
+      el.pause();
+      el.currentTime = 0;
+      unlocked = true;
+    })
+    .catch(() => {
+      // Not allowed yet - the next gesture will try again.
+    });
 }
 
-export function setSoundEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(SOUND_KEY, enabled ? "on" : "off");
-  } catch {
-    // Preference will not persist; the current shift still works.
-  }
-  if (enabled) unlockWaiterAlert();
-  emit();
-}
-
-function beep(ctx: AudioContext, startAt: number, frequency: number): void {
-  const oscillator = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, startAt);
-
-  // Shaped envelope: an abrupt start/stop clicks audibly on phone speakers.
-  gain.gain.setValueAtTime(0, startAt);
-  gain.gain.linearRampToValueAtTime(0.3, startAt + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.28);
-
-  oscillator.connect(gain).connect(ctx.destination);
-  oscillator.start(startAt);
-  oscillator.stop(startAt + 0.3);
+export function isAudioUnlocked(): boolean {
+  return unlocked;
 }
 
 function vibrate(): void {
-  // Android/Chrome only - iOS Safari has no Vibration API at all, which is
-  // why the sound and the red pulsing tile both still matter.
+  // Android/Chrome only. iOS Safari has no Vibration API at all, and it also
+  // silences this kind of audio when the ring/silent switch is off - which
+  // is exactly why the red pulsing tile is not optional.
   if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
   try {
-    navigator.vibrate([180, 90, 180]);
+    navigator.vibrate([300, 120, 300, 120, 300]);
   } catch {
-    // Some browsers throw when the page is not visible; not worth reporting.
+    // Some browsers throw when the page is hidden; not worth reporting.
   }
 }
 
-/**
- * Two rising notes, distinct from a phone's own notification ding, plus a
- * double buzz. Short enough not to be irritating on a busy floor.
- */
+/** Fired on every new waiter call. Vibration first, so it still reports when audio is blocked. */
 export function playWaiterCallAlert(): void {
   vibrate();
-  if (!isSoundEnabled()) return;
 
-  const ctx = getContext();
-  if (!ctx) return;
-
-  const play = () => {
-    const now = ctx.currentTime;
-    beep(ctx, now, 880);
-    beep(ctx, now + 0.22, 1174.7);
-  };
-
-  if (ctx.state === "suspended") {
-    // Last-ditch: browsers sometimes allow a resume here if the waiter has
-    // interacted with the page at all. If not, the red pulsing table and the
-    // vibration above are the fallback.
-    void ctx.resume().then(play).catch(() => {});
-    return;
+  const el = getAudio();
+  if (!el) return;
+  // Always assert full volume: the unlock path mutes this element, and any
+  // leftover 0 would turn the alert into silence.
+  el.volume = 1;
+  el.muted = false;
+  try {
+    el.currentTime = 0;
+  } catch {
+    // Safari throws if metadata is not loaded yet; play() below still works.
   }
-  play();
+  void el.play().catch(() => {
+    // Blocked because no gesture has happened yet in this document. The next
+    // interaction unlocks it; the pulsing red table covers this moment.
+    unlocked = false;
+  });
 }

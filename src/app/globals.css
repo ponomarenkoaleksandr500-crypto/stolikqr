@@ -8,10 +8,13 @@
  * (classic/midnight/botanical/coastal/rose), removed by DEC-002: the
  * light/dark choice now belongs to the GUEST, not to the restaurant.
  *
- * The @theme block below is LIGHT. [data-mode="dark"] and the
- * prefers-color-scheme block redefine the exact same custom properties,
- * so no component ever changes - only the values behind bg-paper,
- * text-ink-900, bg-accent-600, etc.
+ * The @theme block below is the canonical LIGHT ramp: it generates the
+ * utility classes and gives the scale its meaning (ink-950 darkest ->
+ * ink-50 lightest). :root then overrides those values with the dark
+ * palette, because DARK IS THE DEFAULT, and :root[data-mode="light"]
+ * restores the light one when the guest asks for it. Both blocks redefine
+ * the exact same custom properties, so no component ever changes - only
+ * the values behind bg-paper, text-ink-900, bg-accent-600, etc.
  *
  * The ink ramp INVERTS in dark mode (ink-950 becomes the lightest value),
  * which is what keeps "bg-ink-950 text-paper" reading as an inverted
@@ -97,7 +100,20 @@
  * DARK. The ramp inverts; surfaces darken; accent lightens where it is
  * used as text and stays dark where it is used as a filled background.
  */
-[data-mode="dark"] {
+/*
+ * DARK IS THE PRODUCT DEFAULT.
+ *
+ * The @theme block above is the canonical light ramp - it is what
+ * generates the utility classes and names the scale (ink-950 darkest ->
+ * ink-50 lightest). It is NOT what a first-time guest sees: the :root
+ * block below overrides those values with the dark palette, so a QR menu
+ * opens dark on a first visit regardless of the device setting.
+ *
+ * prefers-color-scheme is deliberately not consulted any more. The mode is
+ * an explicit two-state guest choice (light / dark), so following the
+ * device would add a third, invisible state that the toggle cannot express.
+ */
+:root {
   --color-ink-950: #f5f5f3;
   --color-ink-900: #f2f2f0;
   --color-ink-800: #dcdcd8;
@@ -109,12 +125,10 @@
   --color-ink-200: #343431;
   --color-ink-100: #242422;
   --color-ink-50: #1f1f1d;
-
   --color-paper: #0f0f0e;
   --color-surface: #1a1a19;
   --color-background: #0f0f0e;
   --color-foreground: #f2f2f0;
-
   --color-accent-50: #2b1710;
   --color-accent-100: #3a1e15;
   --color-accent-200: #5a3121;
@@ -125,84 +139,65 @@
   --color-accent: #e2683a;
   --color-accent-strong: #f08a5d;
   --color-on-accent: #1a0d06;
-
   --color-sage-100: #14291e;
   --color-sage-600: #2f7d52;
   --color-sage-700: #5cc98d;
-
   --color-gold-100: #2c2313;
   --color-gold-300: #7a6330;
   --color-gold-600: #a67c22;
   --color-gold-700: #e0b054;
-
   --color-danger-50: #2e1917;
   --color-danger-500: #c93f34;
   --color-danger-600: #ef8279;
   --color-danger-700: #f5a09a;
-
   --color-info-50: #15243a;
   --color-info-600: #7fb0ea;
+/* System preference, unless the guest explicitly picked light. */
 
   color-scheme: dark;
 }
 
-/* System preference, unless the guest explicitly picked light. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-mode="light"]) {
-    --color-ink-950: #f5f5f3;
-    --color-ink-900: #f2f2f0;
-    --color-ink-800: #dcdcd8;
-    --color-ink-700: #c4c4bf;
-    --color-ink-600: #a5a5a0;
-    --color-ink-500: #96968f;
-    --color-ink-400: #6f6f6a;
-    --color-ink-300: #4a4a46;
-    --color-ink-200: #343431;
-    --color-ink-100: #242422;
-    --color-ink-50: #1f1f1d;
+/* The only thing that turns the product light is the guest asking for it. */
+:root[data-mode="light"] {
+  --color-ink-950: #121211;
+  --color-ink-900: #1a1a19;
+  --color-ink-800: #2e2e2c;
+  --color-ink-700: #45443f;
+  --color-ink-600: #5c5b56;
+  --color-ink-500: #6a6a66;
+  --color-ink-400: #8c8c87;
+  --color-ink-300: #b4b4af;
+  --color-ink-200: #dcdcd8;
+  --color-ink-100: #e9e9e6;
+  --color-ink-50: #f1f1ef;
+  --color-paper: #f6f6f5;
+  --color-surface: #ffffff;
+  --color-background: #f6f6f5;
+  --color-foreground: #1a1a19;
+  --color-accent-50: #fbeae3;
+  --color-accent-100: #f9ded2;
+  --color-accent-200: #f2c3ac;
+  --color-accent-300: #e89a75;
+  --color-accent-500: #c2451a;
+  --color-accent-600: #b03f18;
+  --color-accent-700: #993716;
+  --color-accent: #c2451a;
+  --color-accent-strong: #b03f18;
+  --color-on-accent: #ffffff;
+  --color-sage-100: #e3f2e9;
+  --color-sage-600: #1c6b43;
+  --color-sage-700: #1c6b43;
+  --color-gold-100: #faefd9;
+  --color-gold-300: #d9b877;
+  --color-gold-600: #8a5a06;
+  --color-gold-700: #8a5a06;
+  --color-danger-50: #fbe9e7;
+  --color-danger-500: #b3261e;
+  --color-danger-600: #b3261e;
+  --color-danger-700: #99201a;
+  --color-info-50: #e4eefb;
+  --color-info-600: #1f5fa8;
 
-    --color-paper: #0f0f0e;
-    --color-surface: #1a1a19;
-    --color-background: #0f0f0e;
-    --color-foreground: #f2f2f0;
-
-    --color-accent-50: #2b1710;
-    --color-accent-100: #3a1e15;
-    --color-accent-200: #5a3121;
-    --color-accent-300: #f0a97f;
-    --color-accent-500: #e2683a;
-    --color-accent-600: #e2683a;
-    --color-accent-700: #f08a5d;
-    --color-accent: #e2683a;
-    --color-accent-strong: #f08a5d;
-    --color-on-accent: #1a0d06;
-
-    --color-sage-100: #14291e;
-    --color-sage-600: #2f7d52;
-    --color-sage-700: #5cc98d;
-
-    --color-gold-100: #2c2313;
-    --color-gold-300: #7a6330;
-    --color-gold-600: #a67c22;
-    --color-gold-700: #e0b054;
-
-    --color-danger-50: #2e1917;
-    --color-danger-500: #c93f34;
-    --color-danger-600: #ef8279;
-    --color-danger-700: #f5a09a;
-
-    --color-info-50: #15243a;
-    --color-info-600: #7fb0ea;
-
-    color-scheme: dark;
-  }
-}
-
-:root {
-  color-scheme: light;
-}
-
-[data-mode="light"] {
   color-scheme: light;
 }
 

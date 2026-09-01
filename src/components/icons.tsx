@@ -244,23 +244,6 @@ export function MoonIcon({ className }: { className?: string }) {
   );
 }
 
-export function AutoThemeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 3.5v17a8.5 8.5 0 0 0 0-17Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 /**
  * Neutral stand-in for a dish with no photograph. Replaces the emoji +

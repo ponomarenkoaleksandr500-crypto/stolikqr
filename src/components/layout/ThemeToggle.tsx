@@ -1,41 +1,37 @@
 "use client";
 
-import { useTheme, type ThemeMode } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
 import { useLocale } from "@/i18n/LocaleProvider";
-import { AutoThemeIcon, MoonIcon, SunIcon } from "@/components/icons";
-
-const ICONS: Record<ThemeMode, (props: { className?: string }) => React.ReactElement> = {
-  system: AutoThemeIcon,
-  light: SunIcon,
-  dark: MoonIcon,
-};
-
-const NEXT_MODE: Record<ThemeMode, ThemeMode> = {
-  system: "light",
-  light: "dark",
-  dark: "system",
-};
+import { MoonIcon, SunIcon } from "@/components/icons";
 
 /**
- * Guest-facing light/dark control (design-contract.md §5).
+ * Two states, nothing else: light and dark (sun / moon).
  *
- * `variant="scrim"` is for the restaurant header, where the control sits
- * on a photograph: it needs its own light-on-dark treatment in BOTH
- * modes, because a scrim over an image does not invert with the theme.
+ * The icon shows the CURRENT mode - a moon means "you are in dark" - and
+ * the accessible label carries the action, so a screen-reader user is not
+ * left guessing whether the icon is a state or a button.
+ *
+ * `variant="scrim"` is for the restaurant header, where the control sits on
+ * a photograph: it needs its own light-on-dark treatment in BOTH modes,
+ * because a scrim over an image does not invert with the theme.
  */
 export function ThemeToggle({ variant = "surface" }: { variant?: "surface" | "scrim" }) {
-  const { mode, resolved, setMode } = useTheme();
+  const { mode, toggle } = useTheme();
   const { t } = useLocale();
-  const Icon = ICONS[mode];
 
+  const isDark = mode === "dark";
+  const Icon = isDark ? MoonIcon : SunIcon;
   const onScrim = variant === "scrim";
 
   return (
     <button
       type="button"
-      onClick={() => setMode(NEXT_MODE[mode])}
-      title={t(`theme.${mode}`)}
-      aria-label={`${t(`theme.${mode}`)} — ${t(`theme.switchTo.${NEXT_MODE[mode]}`)}`}
+      onClick={toggle}
+      title={t(isDark ? "theme.dark" : "theme.light")}
+      aria-label={`${t(isDark ? "theme.dark" : "theme.light")} — ${t(
+        isDark ? "theme.switchTo.light" : "theme.switchTo.dark",
+      )}`}
+      aria-pressed={isDark}
       className={`inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 ${
         onScrim
           ? "border-white/20 bg-white/10 text-on-scrim hover:bg-white/20 focus-visible:ring-offset-transparent"
@@ -43,9 +39,6 @@ export function ThemeToggle({ variant = "surface" }: { variant?: "surface" | "sc
       }`}
     >
       <Icon className="h-[18px] w-[18px]" />
-      {/* The resolved mode is announced separately so a screen-reader user
-          knows what "system" currently means, not just that it is set. */}
-      <span className="sr-only">{t(`theme.resolved.${resolved}`)}</span>
     </button>
   );
 }

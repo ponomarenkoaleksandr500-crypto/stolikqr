@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { playWaiterCallAlert, unlockWaiterAlert } from "@/lib/waiterAlert";
+import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
 import { io, type Socket } from "socket.io-client";
 import {
   ApiUnauthorizedError,
@@ -77,7 +79,10 @@ const CALL_ACTION_LABEL: Record<string, string> = {
 // Floor plan color-coding - priority order matches backend StaffService's
 // derivation (a table's `status` is already the single winning state).
 const TABLE_STATUS_STYLE: Record<TableFloorStatus, string> = {
-  CALLED_WAITER: "border-accent-300 bg-accent-50 text-accent-700",
+  // Red and pulsing on purpose: this is the one state that needs a person
+  // to walk over, and it has to be findable across a room. Everything else
+  // on this plan uses the brand accent, so a call would not stand out in it.
+  CALLED_WAITER: "animate-call-pulse border-danger-500 bg-danger-50 text-danger-600",
   AWAITING_PAYMENT: "border-gold-300 bg-gold-100 text-gold-700",
   ORDERED: "border-sage-600/30 bg-sage-100 text-sage-700",
   OCCUPIED: "border-ink-300 bg-ink-100 text-ink-700",
@@ -111,6 +116,24 @@ export default function WaiterDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const socketRef = useRef<Socket | null>(null);
+
+  // Browsers will not let a page make sound until the user has interacted
+  // with it, and the waiter's login click happened on the previous route.
+  // The first touch anywhere on this screen unlocks the audio context, so
+  // the alert works from the first real call onwards.
+  useEffect(() => {
+    const unlock = () => {
+      unlockWaiterAlert();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   const goToLogin = useCallback(() => {
     clearStaffSession();
@@ -164,7 +187,13 @@ export default function WaiterDashboardPage() {
     const onChange = () => void refresh();
     socket.on("order.created", onChange);
     socket.on("order.status.updated", onChange);
-    socket.on("waiterCall.created", onChange);
+    // Only waiterCall.created makes a sound. It fires once per genuinely new
+    // call, so there is nothing to de-duplicate, and it never replays for
+    // calls that were already open when this screen loaded.
+    socket.on("waiterCall.created", () => {
+      playWaiterCallAlert();
+      onChange();
+    });
     socket.on("waiterCall.status.updated", onChange);
     socket.on("payment.status.updated", onChange);
     socket.on("table.closed", onChange);
@@ -380,12 +409,7 @@ export default function WaiterDashboardPage() {
 
                   <ul className="mt-3 divide-y divide-ink-100 border-t border-ink-100">
                     {order.items.map((item) => (
-                      <li key={item.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                        <span className="text-ink-700">
-                          {item.quantity} × {item.name.uk}
-                        </span>
-                        <span className="tabular-nums text-ink-500">{formatPrice(item.lineTotal)}</span>
-                      </li>
+                      <WaiterOrderItem key={item.id} item={item} tone="muted" />
                     ))}
                   </ul>
 

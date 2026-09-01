@@ -17,6 +17,7 @@ import { clearStaffSession, getStaffToken, getStoredStaff } from "@/lib/staffAut
 import { formatPrice, formatRelativeTimeUk } from "@/lib/format";
 import { PotIcon } from "@/components/table/tableIcons";
 import { CheckIcon, ChevronRightIcon } from "@/components/icons";
+import { WaiterOrderItem } from "@/components/waiter/WaiterOrderItem";
 
 // Demo Platform v1 is single-tenant - see stolikqr/src/app/page.tsx for the
 // same constant used on the Guest App side.
@@ -269,12 +270,7 @@ export default function TableDetailPage() {
 
               <ul className="mt-3 divide-y divide-ink-100 border-t border-ink-100">
                 {order.items.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                    <span className="text-ink-700">
-                      {item.quantity} × {item.name.uk}
-                    </span>
-                    <span className="tabular-nums text-ink-600">{formatPrice(item.lineTotal)}</span>
-                  </li>
+                  <WaiterOrderItem key={item.id} item={item} />
                 ))}
               </ul>
 

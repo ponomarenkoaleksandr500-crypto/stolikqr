@@ -34,7 +34,18 @@ export function RecommendationsShelf({
             onClick={() => onSelect(dish)}
             className="flex w-28 shrink-0 flex-col overflow-hidden rounded-lg border border-ink-100 bg-surface text-left transition-colors hover:border-ink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
-            <div className="relative flex h-16 items-center justify-center overflow-hidden bg-ink-50">
+            {/*
+              w-full is not decorative: WebKit's UA stylesheet sets align-items
+              on <button>, so a flex-column button does NOT stretch its children
+              the way a <div> does. Without an explicit width this box - whose
+              only child is an absolutely positioned fill image - collapsed to
+              0px wide in Safari/iOS and the photo simply never appeared, while
+              Chrome rendered it fine. Every other photo box in the app
+              (DishCard w-full, OrderLineItem/CartLineItem w-16) already sets one.
+              aspect-[4/3] matches DishCard, so the shelf shows the same crop of
+              the dish as the menu card instead of a wide bottom sliver.
+            */}
+            <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-ink-50">
               {dish.photoUrl ? (
                 <Image src={dish.photoUrl} alt="" fill sizes="112px" className="object-cover object-bottom" />
               ) : (

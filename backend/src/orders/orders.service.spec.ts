@@ -498,4 +498,14 @@ describe('OrdersService', () => {
       );
     });
   });
+  describe('paidMode', () => {
+    it('exposes paidMode as null for an unpaid order', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.dish.findUnique.mockResolvedValue(dish);
+
+      const result = await service.create(baseDto);
+
+      expect(result.paidMode).toBeNull();
+    });
+  });
 });

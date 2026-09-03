@@ -522,6 +522,7 @@ export class OrdersService {
     status: string;
     createdAt: Date;
     paidAt: Date | null;
+    paidMode: string | null;
     items: {
       id: string;
       dishId: string;
@@ -547,6 +548,7 @@ export class OrdersService {
       status: order.status,
       createdAt: order.createdAt.getTime(),
       paidAt: order.paidAt?.getTime() ?? null,
+      paidMode: order.paidMode ?? null,
       items: order.items.map((item): OrderItemDto => ({
         id: item.id,
         dishId: item.dishId,

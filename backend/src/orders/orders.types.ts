@@ -41,6 +41,7 @@ export interface OrderDto {
   status: string;
   createdAt: number;
   paidAt: number | null;
+  paidMode: string | null;
   items: OrderItemDto[];
 }
 

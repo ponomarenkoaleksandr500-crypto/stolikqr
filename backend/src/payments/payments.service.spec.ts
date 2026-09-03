@@ -258,6 +258,28 @@ describe('PaymentsService', () => {
       );
     });
 
+    it('writes paidMode equal to the payment mode, in the same update call as paidAt', async () => {
+      prisma.payment.findUnique.mockResolvedValue(
+        paymentRecord({ status: 'PENDING', mode: 'DEMO' }),
+      );
+      prisma.payment.update.mockResolvedValue(
+        paymentRecord({ status: 'SUCCEEDED', confirmedAt: new Date() }),
+      );
+      prisma.order.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.handleProviderSettled({ providerRef: 'ref-1' });
+
+      const orderUpdateArgs = prisma.order.updateMany.mock.calls[0][0] as {
+        where: { tableId: string; paidAt: unknown };
+        data: { paidAt: Date; paidMode: string };
+      };
+      expect(orderUpdateArgs.data.paidAt).toBeInstanceOf(Date);
+      expect(orderUpdateArgs.data.paidMode).toBe('DEMO');
+      // Verify they are in the same data object (one call, not two)
+      expect(Object.keys(orderUpdateArgs.data)).toContain('paidAt');
+      expect(Object.keys(orderUpdateArgs.data)).toContain('paidMode');
+    });
+
     it('is a no-op for an unknown providerRef', async () => {
       prisma.payment.findUnique.mockResolvedValue(null);
 
@@ -294,7 +316,9 @@ describe('PaymentsService', () => {
       expect(result.status).toBe('REFUNDED');
       expect(mockProvider.refund).toHaveBeenCalledWith('ref-1');
       expect(prisma.order.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { paidAt: null } }),
+        expect.objectContaining({
+          data: { paidAt: null, paidMode: null },
+        }),
       );
     });
 

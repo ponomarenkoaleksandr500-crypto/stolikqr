@@ -160,7 +160,7 @@ export class PaymentsService {
       }),
       this.prisma.order.updateMany({
         where: { tableId: payment.tableId, paidAt: null },
-        data: { paidAt: confirmedAt },
+        data: { paidAt: confirmedAt, paidMode: payment.mode },
       }),
     ]);
 
@@ -225,7 +225,7 @@ export class PaymentsService {
       }),
       this.prisma.order.updateMany({
         where: { tableId: payment.tableId, paidAt: { not: null } },
-        data: { paidAt: null },
+        data: { paidAt: null, paidMode: null },
       }),
     ]);
 

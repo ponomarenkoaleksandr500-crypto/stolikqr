@@ -235,6 +235,7 @@ model Order {
   status         OrderStatus   @default(NEW)
   createdAt      DateTime      @default(now())
   paidAt         DateTime?
+  paidMode       PaymentMode?
 
   items OrderItem[]
 

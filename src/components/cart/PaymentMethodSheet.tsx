@@ -28,7 +28,7 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
   const { t } = useLocale();
   const { dialogRef, closing, requestClose } = useDialog(onClose);
   const { session } = useTableSession();
-  const { payWithMethod } = usePayment();
+  const { payWithMethod, isDemo } = usePayment();
   const [pendingMethod, setPendingMethod] = useState<PaymentMethod | null>(null);
   const [paid, setPaid] = useState(false);
   const [payFailed, setPayFailed] = useState(false);
@@ -86,6 +86,15 @@ export function PaymentMethodSheet({ amount, onClose }: { amount: number; onClos
             <p className="font-display text-lg font-semibold text-ink-900">
               {t("payment.successTitle")}
             </p>
+            {/* No real gateway is wired up yet, so this settlement moved no
+                money. Saying so is the point: a demo the guest cannot tell
+                apart from a real payment is not a demo (DEC-006). */}
+            {isDemo && (
+              <p className="max-w-xs text-sm text-ink-600">
+                Демонстраційна оплата — кошти не списувалися. Рахунок закрито
+                лише в системі.
+              </p>
+            )}
           </div>
         ) : (
           <>

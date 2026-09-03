@@ -81,6 +81,12 @@ export function isSucceeded(state: PaymentState | null): boolean {
   return state !== null && state.status === "SUCCEEDED";
 }
 
+/** No real money moved. The UI must say so rather than show a settlement
+ *  indistinguishable from a real one (DEC-006). */
+export function isDemo(state: PaymentState | null): boolean {
+  return state !== null && state.mode === "DEMO";
+}
+
 /** Clears the locally cached payment, e.g. when the active table changes (see table/tableStore.ts). */
 export function clearPayment(): void {
   current = null;

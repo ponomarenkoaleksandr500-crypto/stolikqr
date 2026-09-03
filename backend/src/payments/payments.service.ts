@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,7 +8,7 @@ import {
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { MockPaymentProvider } from './mock-payment-provider';
+import { PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
 import {
   PAYMENT_PROVIDER_SETTLED,
   type PaymentDto,
@@ -29,6 +30,7 @@ interface PaymentRecord {
   id: string;
   tableId: string;
   provider: string;
+  mode: string;
   amount: { toNumber(): number };
   status: string;
   createdAt: Date;
@@ -40,7 +42,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly mockProvider: MockPaymentProvider,
+    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
   /**
@@ -105,21 +107,31 @@ export class PaymentsService {
       data: {
         tableId: session.tableId,
         provider: method ?? 'MOCK',
+        // Recorded from the provider, not inferred later: after the fact
+        // there is no way to tell a stub settlement from a real one, and a
+        // SUCCEEDED row with no money behind it is a false accounting
+        // record (DEC-006).
+        mode: this.provider.mode,
         providerRef,
         amount,
         status: 'PENDING',
       },
     });
 
-    if (method) {
-      const settled = await this.settle(providerRef);
-      // settle() only returns null if the payment vanished or was already
-      // settled between create() and here - impossible for a row we just
-      // created PENDING ourselves, but toDto(payment) is a safe fallback.
-      return settled ?? this.toDto(payment);
-    }
+    // Guest checkout expects the payment settled by the time this returns;
+    // the waiter/bring-the-bill path does not. Both now go through the
+    // provider — previously the immediate path called settle() directly and
+    // the provider was never involved, so nothing recorded who settled it.
+    await this.provider.createPaymentIntent(providerRef, Boolean(method));
 
-    this.mockProvider.createPaymentIntent(providerRef);
+    if (method) {
+      // The provider settles this path synchronously, so re-read the row it
+      // just confirmed rather than returning the PENDING one we created.
+      const settled = await this.prisma.payment.findUnique({
+        where: { providerRef },
+      });
+      return this.toDto(settled ?? payment);
+    }
     return this.toDto(payment);
   }
 
@@ -204,7 +216,7 @@ export class PaymentsService {
       );
     }
 
-    this.mockProvider.refund(payment.providerRef);
+    void this.provider.refund(payment.providerRef);
 
     const [updated] = await this.prisma.$transaction([
       this.prisma.payment.update({
@@ -231,6 +243,7 @@ export class PaymentsService {
       id: payment.id,
       tableId: payment.tableId,
       provider: payment.provider,
+      mode: payment.mode,
       amount: payment.amount.toNumber(),
       status: payment.status,
       createdAt: payment.createdAt.getTime(),

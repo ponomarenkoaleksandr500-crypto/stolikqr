@@ -337,13 +337,19 @@ export interface PaymentResponse {
   id: string;
   tableId: string;
   provider: string;
+  /** "DEMO" when no real money moved — see backend DEC-006. Shown to the
+   *  guest and to the waiter so neither is told a settlement is real when
+   *  it is not. */
+  mode: string;
   amount: number;
   status: string;
   createdAt: number;
   confirmedAt: number | null;
 }
 
-/** Guest self-checkout methods (see backend CreatePaymentDto) - stubs for now, no real gateway wired up. */
+/** Guest self-checkout methods (see backend CreatePaymentDto). Still backed by
+ *  a stub provider — every settlement comes back with mode "DEMO" until a real
+ *  gateway is bound (DEC-006). */
 export type PaymentMethod = "CARD" | "APPLE_PAY" | "GOOGLE_PAY" | "EXPIRENZA";
 
 /**

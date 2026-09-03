@@ -15,6 +15,7 @@ export function usePayment() {
     payment,
     isPending: paymentStore.isPending(payment),
     isSucceeded: paymentStore.isSucceeded(payment),
+    isDemo: paymentStore.isDemo(payment),
     payWithMethod: paymentStore.payWithMethod,
   };
 }

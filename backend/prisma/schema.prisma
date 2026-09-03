@@ -389,6 +389,13 @@ enum PaymentProvider {
   EXPIRENZA
 }
 
+enum PaymentMode {
+  // A stub provider settled this. No money moved.
+  DEMO
+  // A real payment provider confirmed this settlement.
+  LIVE
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED
@@ -404,6 +411,12 @@ model Payment {
   tableId     String
   table       Table           @relation(fields: [tableId], references: [id])
   provider    PaymentProvider @default(MOCK)
+  // Whether real money moved. Recorded per row, set from the payment
+  // provider at creation rather than inferred afterwards: a SUCCEEDED row
+  // that never had money behind it is a false accounting record, and after
+  // the fact there is no way to tell one from the other (DEC-006).
+  // Existing rows default to DEMO, which is factually what they were.
+  mode        PaymentMode     @default(DEMO)
   providerRef String          @unique
   amount      Decimal         @db.Decimal(10, 2)
   status      PaymentStatus   @default(PENDING)

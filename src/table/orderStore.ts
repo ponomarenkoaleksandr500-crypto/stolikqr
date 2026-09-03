@@ -134,6 +134,13 @@ function mergeOrders(apiOrders: OrderResponse[], sessionId: string): Order | nul
   // orderStatus.ts's isOrderSettled/getPrimaryStatus, unchanged since D1).
   const allPaid = roundOrders.every((order) => order.paidAt !== null);
   const paidAt = allPaid ? Math.max(...roundOrders.map((order) => order.paidAt ?? 0)) : null;
+  // For paidMode: if any paid order is DEMO, mark the merged view as DEMO.
+  // This ensures the warning is shown if there's any demo settlement.
+  const paidMode = allPaid
+    ? roundOrders.some((order) => order.paidMode === "DEMO")
+      ? "DEMO"
+      : roundOrders.find((order) => order.paidMode !== null)?.paidMode ?? null
+    : null;
 
   return {
     id: first.id,
@@ -142,6 +149,7 @@ function mergeOrders(apiOrders: OrderResponse[], sessionId: string): Order | nul
     items,
     createdAt: first.createdAt,
     paidAt,
+    paidMode,
   };
 }
 

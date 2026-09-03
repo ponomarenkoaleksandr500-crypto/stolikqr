@@ -118,9 +118,13 @@ export function OrderStatusCard({ order }: { order: Order }) {
       </p>
 
       {paidWhileCooking && (
-        <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sage-100 px-2.5 py-1 text-xs font-semibold text-sage-700">
+        <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+          order.paidMode === "DEMO"
+            ? "bg-gold-100 text-gold-700"
+            : "bg-sage-100 text-sage-700"
+        }`}>
           <ReceiptCheckIcon className="h-3.5 w-3.5" />
-          {t("table.paidAlready")}
+          {t(order.paidMode === "DEMO" ? "table.paidAlreadyDemo" : "table.paidAlready")}
         </span>
       )}
 

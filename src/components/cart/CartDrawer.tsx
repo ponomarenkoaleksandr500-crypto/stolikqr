@@ -113,9 +113,13 @@ export function CartDrawer({ onClose, dishes }: { onClose: () => void; dishes: D
                         guard the pay button would stay live on an order that
                         is already settled and invite paying twice. */}
                     {order.paidAt ? (
-                      <p className="mt-3 flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-sage-100 px-4 text-sm font-semibold text-sage-700">
+                      <p className={`mt-3 flex min-h-12 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold ${
+                        order.paidMode === "DEMO"
+                          ? "bg-gold-100 text-gold-700"
+                          : "bg-sage-100 text-sage-700"
+                      }`}>
                         <ReceiptCheckIcon className="h-4 w-4" />
-                        {t("table.paidAlready")} · {formatPrice(getOrderTotals(order).total)}
+                        {t(order.paidMode === "DEMO" ? "table.paidAlreadyDemo" : "table.paidAlready")} · {formatPrice(getOrderTotals(order).total)}
                       </p>
                     ) : (
                       <button

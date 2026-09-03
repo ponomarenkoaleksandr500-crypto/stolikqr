@@ -50,4 +50,5 @@ export interface Order {
   items: OrderItem[];
   createdAt: number;
   paidAt: number | null;
+  paidMode: string | null;
 }

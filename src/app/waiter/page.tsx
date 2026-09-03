@@ -419,8 +419,12 @@ export default function WaiterDashboardPage() {
                           {ORDER_STATUS_LABEL[order.status] ?? order.status} ·{" "}
                           {formatRelativeTimeUk(order.createdAt)}
                           {order.paidAt && (
-                            <span className="ml-1.5 inline-flex items-center rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-semibold text-sage-700">
-                              Оплачено
+                            <span className={`ml-1.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              order.paidMode === "DEMO"
+                                ? "bg-gold-100 text-gold-700"
+                                : "bg-sage-100 text-sage-700"
+                            }`}>
+                              {order.paidMode === "DEMO" ? "Демо оплачено" : "Оплачено"}
                             </span>
                           )}
                         </p>

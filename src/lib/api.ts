@@ -138,6 +138,7 @@ export interface OrderResponse {
   status: string;
   createdAt: number;
   paidAt: number | null;
+  paidMode: string | null;
   items: OrderItemResponse[];
 }
 

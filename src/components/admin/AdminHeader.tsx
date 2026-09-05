@@ -17,11 +17,9 @@ const NAV_ITEMS: { href: string; label: string }[] = [
 /** Shared by every /admin/* page - mirrors the per-page header pattern already used by the Waiter App. */
 export function AdminHeader({
   restaurantName,
-  staffName,
   onLogout,
 }: {
   restaurantName: string | null;
-  staffName: string;
   onLogout: () => void;
 }) {
   const pathname = usePathname();
@@ -30,7 +28,7 @@ export function AdminHeader({
     <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-ink-100 bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="font-display text-lg font-semibold text-ink-900">{restaurantName ?? "…"}</p>
-        <p className="text-xs text-ink-500">{staffName} · Адмін</p>
+        <p className="text-xs text-ink-500">Демо Адмін</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {NAV_ITEMS.map((item) => {

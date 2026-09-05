@@ -104,7 +104,7 @@ export default function AdminAnalyticsPage() {
 
   return (
     <div className="min-h-dvh bg-paper pb-16">
-      <AdminHeader restaurantName={restaurantName} staffName={staff.name} onLogout={logout} />
+      <AdminHeader restaurantName={restaurantName} onLogout={logout} />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-5">
         <div className="flex items-center justify-between">

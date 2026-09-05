@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
-import { MockPaymentProvider } from './mock-payment-provider';
+import { PAYMENT_PROVIDER } from './payment-provider';
 import { PaymentsService } from './payments.service';
 import type { AuthenticatedStaff } from '../auth/auth.types';
 
@@ -53,6 +53,9 @@ function paymentRecord(overrides: Partial<Record<string, unknown>> = {}) {
 function buildMockPrisma() {
   return {
     guestSession: { findUnique: jest.fn() },
+    // The staff entry point resolves the table directly: a waiter-placed
+    // order has no guest session to resolve it from (DEC-005).
+    table: { findUnique: jest.fn() },
     order: {
       findMany: jest.fn(),
       updateMany: jest.fn<
@@ -82,18 +85,29 @@ describe('PaymentsService', () => {
   let service: PaymentsService;
   let prisma: ReturnType<typeof buildMockPrisma>;
   let eventEmitter: { emit: jest.Mock };
-  let mockProvider: { createPaymentIntent: jest.Mock; refund: jest.Mock };
+  let mockProvider: {
+    mode: string;
+    createPaymentIntent: jest.Mock;
+    refund: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = buildMockPrisma();
     eventEmitter = { emit: jest.fn() };
-    mockProvider = { createPaymentIntent: jest.fn(), refund: jest.fn() };
+    // A provider must declare its mode: the service records it on every
+    // payment row so a stub settlement is never indistinguishable from a
+    // real one (DEC-006).
+    mockProvider = {
+      mode: 'DEMO',
+      createPaymentIntent: jest.fn(),
+      refund: jest.fn(),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventEmitter2, useValue: eventEmitter },
-        { provide: MockPaymentProvider, useValue: mockProvider },
+        { provide: PAYMENT_PROVIDER, useValue: mockProvider },
       ],
     }).compile();
     service = moduleRef.get(PaymentsService);
@@ -121,6 +135,7 @@ describe('PaymentsService', () => {
       expect(result.status).toBe('PENDING');
       expect(mockProvider.createPaymentIntent).toHaveBeenCalledWith(
         expect.any(String),
+        false,
       );
     });
 
@@ -161,7 +176,7 @@ describe('PaymentsService', () => {
       prisma.payment.findFirst.mockResolvedValue(
         paymentRecord({
           id: 'orphaned-pending',
-          createdAt: new Date(Date.now() - 60_000), // well past MockPaymentProvider's 8s delay
+          createdAt: new Date(Date.now() - 60_000), // well past the stub provider's 8s delay
         }),
       );
       prisma.order.findMany.mockResolvedValue([orderWithItems(150)]);
@@ -184,12 +199,71 @@ describe('PaymentsService', () => {
       expect(result.amount).toBe(150);
       expect(mockProvider.createPaymentIntent).toHaveBeenCalledWith(
         expect.any(String),
+        false,
       );
     });
 
-    it('settles instantly (no provider intent) when the guest picks a self-checkout method', async () => {
+    it('routes guest self-checkout through the provider, not around it', async () => {
       prisma.guestSession.findUnique.mockResolvedValue(session);
       prisma.order.findMany.mockResolvedValue([orderWithItems(240)]);
+
+      // One row the mocks share, so an update is visible to the read that
+      // follows it — the service re-reads the row the provider just settled,
+      // and a mock that always returns the original would hide that.
+      let row: Record<string, unknown> | null = null;
+      prisma.payment.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => {
+          row = {
+            ...paymentRecord(),
+            ...data,
+            amount: { toNumber: () => data.amount as number },
+          };
+          return Promise.resolve(row);
+        },
+      );
+      prisma.payment.findUnique.mockImplementation(() => Promise.resolve(row));
+      prisma.payment.update.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => {
+          row = { ...(row as object), ...data };
+          return Promise.resolve(row);
+        },
+      );
+      prisma.order.updateMany.mockResolvedValue({ count: 1 });
+
+      // The provider drives settlement now, so the stub must do what the real
+      // one does: tell the service it settled. Previously the service called
+      // settle() itself and the provider was bypassed entirely (DEC-006).
+      mockProvider.createPaymentIntent.mockImplementation(
+        async (providerRef: string, immediate: boolean) => {
+          if (immediate) await service.handleProviderSettled({ providerRef });
+        },
+      );
+
+      const result = await service.create('session-1', 'CARD');
+
+      expect((row as unknown as { provider: string }).provider).toBe('CARD');
+      expect((row as unknown as { mode: string }).mode).toBe('DEMO');
+      expect(result.status).toBe('SUCCEEDED');
+      expect(result.mode).toBe('DEMO');
+      expect(mockProvider.createPaymentIntent).toHaveBeenCalledWith(
+        expect.any(String),
+        true,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'payment.status.updated',
+        expect.objectContaining({ tableId: 'table-1' }),
+      );
+    });
+  });
+
+  // BUG-001: a waiter-placed order has no guest session, so the guest entry
+  // point could not reach it and the table could never be settled or closed.
+  // DEC-006: a stub settlement must never be indistinguishable from a real
+  // one. These lock the two properties that guarantee it.
+  describe('payment mode (DEC-006)', () => {
+    it("records the provider's mode on the row, rather than inferring it later", async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findMany.mockResolvedValue([orderWithItems(100)]);
       let created: Record<string, unknown> = {};
       prisma.payment.create.mockImplementation(
         ({ data }: { data: Record<string, unknown> }) => {
@@ -201,29 +275,55 @@ describe('PaymentsService', () => {
           });
         },
       );
-      prisma.payment.findUnique.mockImplementation(() =>
-        Promise.resolve(paymentRecord({ ...created, status: 'PENDING' })),
-      );
-      prisma.payment.update.mockResolvedValue(
-        paymentRecord({
-          ...created,
-          status: 'SUCCEEDED',
-          confirmedAt: new Date(),
-        }),
-      );
-      prisma.order.updateMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.create('session-1', 'CARD');
+      const result = await service.create('session-1');
 
-      expect(created.provider).toBe('CARD');
-      expect(result.status).toBe('SUCCEEDED');
-      // The stub settles inline, unlike the "bring the bill" flow - no
-      // async provider intent, no waiting on MockPaymentProvider's timer.
-      expect(mockProvider.createPaymentIntent).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        'payment.status.updated',
-        expect.objectContaining({ tableId: 'table-1' }),
+      expect(created.mode).toBe('DEMO');
+      expect(result.mode).toBe('DEMO');
+    });
+
+    it("carries a live provider's mode through unchanged", async () => {
+      mockProvider.mode = 'LIVE';
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findMany.mockResolvedValue([orderWithItems(100)]);
+      let created: Record<string, unknown> = {};
+      prisma.payment.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => {
+          created = data;
+          return Promise.resolve({
+            ...paymentRecord(),
+            ...data,
+            amount: { toNumber: () => data.amount as number },
+          });
+        },
       );
+
+      await service.create('session-1');
+
+      // The service must not hardcode DEMO anywhere: swapping the provider
+      // is the only thing that should change what a row claims.
+      expect(created.mode).toBe('LIVE');
+    });
+
+    it('never settles without going through the provider', async () => {
+      prisma.guestSession.findUnique.mockResolvedValue(session);
+      prisma.order.findMany.mockResolvedValue([orderWithItems(100)]);
+      prisma.payment.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            ...paymentRecord(),
+            ...data,
+            amount: { toNumber: () => data.amount as number },
+          }),
+      );
+
+      const result = await service.create('session-1');
+
+      expect(mockProvider.createPaymentIntent).toHaveBeenCalledTimes(1);
+      // The stub here does nothing, so nothing settled it — the row must
+      // still be PENDING. A service that settled on its own would show
+      // SUCCEEDED and that is exactly the bypass DEC-006 removed.
+      expect(result.status).toBe('PENDING');
     });
   });
 
